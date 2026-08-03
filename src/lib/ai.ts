@@ -1,7 +1,9 @@
 // Desglose de ideas con Cloudflare Workers AI (Llama, free-tier, sin API key
 // externa). Toma la idea + comentarios y propone una lista de issues concretos.
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// Nota: el id debe existir en la cuenta (ver `wrangler ai models`). El
+// `llama-3.1-8b-instruct` plano NO está disponible; usamos 3.3 70B fp8-fast.
+const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 export interface IssueSugerido {
   titulo: string;
@@ -61,8 +63,14 @@ ${comentarios}`;
       { role: "system", content: SYSTEM },
       { role: "user", content: userMsg },
     ],
-    max_tokens: 1024,
-  })) as { response?: string };
+    max_tokens: 2048,
+  })) as { response?: string | { issues?: unknown } };
 
-  return parseIssues(out.response ?? "");
+  // El modelo suele devolver `response` como string; si viniera ya parseado a
+  // objeto {issues:[...]}, lo serializamos para reusar el parser tolerante.
+  const raw =
+    typeof out.response === "string"
+      ? out.response
+      : JSON.stringify(out.response ?? "");
+  return parseIssues(raw);
 }
