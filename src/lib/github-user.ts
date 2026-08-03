@@ -244,6 +244,12 @@ export async function createRepo(
   });
 }
 
+// Verifica que el token tenga acceso al repo y devuelve sus datos.
+// Lanza si no existe o el usuario no tiene permiso.
+export async function getRepo(token: string, repo: string): Promise<Repo> {
+  return ghFetch<Repo>(token, `/repos/${repo}`);
+}
+
 export async function createIssue(
   token: string,
   repo: string,

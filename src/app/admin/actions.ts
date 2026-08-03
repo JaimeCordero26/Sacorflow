@@ -5,6 +5,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
+  bugs,
   clientes,
   etapas,
   eventosProgreso,
@@ -24,6 +25,7 @@ import {
   createIssue,
   createRepo,
   createWebhook,
+  getRepo,
   getUserToken,
   progressWithToken,
 } from "@/lib/github-user";
@@ -61,6 +63,16 @@ export async function crearProyecto(formData: FormData) {
     creadoPor: session.uid,
   });
   revalidatePath("/admin/kanban");
+}
+
+export async function eliminarProyecto(proyectoId: string) {
+  await requireSession();
+  const db = getDb();
+  // Los hijos (comentarios, issues, eventos, mensajes, pivote cliente) tienen
+  // onDelete: "cascade" en el schema, así que se borran solos.
+  await db.delete(proyectos).where(eq(proyectos.id, proyectoId));
+  revalidatePath("/admin/kanban");
+  revalidatePath("/admin");
 }
 
 export async function moverTarjeta(
@@ -233,6 +245,58 @@ export async function eliminarEtapa(id: string) {
   revalidatePath("/admin/proyectos", "layout");
 }
 
+// ---------- Bug tracker (errores) ----------
+
+const PRIORIDADES = ["alta", "media", "baja"] as const;
+const ESTADOS_BUG = ["abierto", "en_progreso", "resuelto"] as const;
+
+export async function crearBug(formData: FormData) {
+  const session = await requireSession();
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!titulo) return;
+  const prioridad = String(formData.get("prioridad") ?? "media");
+  const proyectoId = String(formData.get("proyectoId") ?? "").trim();
+  const db = getDb();
+  await db.insert(bugs).values({
+    id: newId(),
+    titulo,
+    descripcion: String(formData.get("descripcion") ?? "").trim() || null,
+    prioridad: (PRIORIDADES as readonly string[]).includes(prioridad)
+      ? prioridad
+      : "media",
+    estado: "abierto",
+    proyectoId: proyectoId || null,
+    creadoPor: session.uid,
+  });
+  revalidatePath("/admin/bugs");
+  revalidatePath("/admin");
+}
+
+export async function actualizarBug(
+  id: string,
+  data: { estado?: string; prioridad?: string },
+) {
+  await requireSession();
+  const set: Record<string, unknown> = {};
+  if (data.prioridad && (PRIORIDADES as readonly string[]).includes(data.prioridad))
+    set.prioridad = data.prioridad;
+  if (data.estado && (ESTADOS_BUG as readonly string[]).includes(data.estado)) {
+    set.estado = data.estado;
+    set.resueltoEn = data.estado === "resuelto" ? new Date().toISOString() : null;
+  }
+  if (Object.keys(set).length === 0) return;
+  const db = getDb();
+  await db.update(bugs).set(set).where(eq(bugs.id, id));
+  revalidatePath("/admin/bugs");
+}
+
+export async function eliminarBug(id: string) {
+  await requireSession();
+  const db = getDb();
+  await db.delete(bugs).where(eq(bugs.id, id));
+  revalidatePath("/admin/bugs");
+}
+
 // ---------- Clientes (mini-CRM) ----------
 
 export async function crearCliente(formData: FormData) {
@@ -303,6 +367,81 @@ export async function desconectarGithub() {
   const db = getDb();
   await db.delete(githubCuentas).where(eq(githubCuentas.usuarioId, session.uid));
   revalidatePath("/admin/perfil");
+}
+
+// Acepta "owner/repo", una URL completa de GitHub, o con ".git", y normaliza a
+// "owner/repo". Devuelve null si no puede extraer un par válido.
+function normalizeRepo(input: string): string | null {
+  let s = input.trim();
+  if (!s) return null;
+  s = s.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
+  s = s.replace(/\.git$/i, "").replace(/\/+$/, "");
+  const m = s.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+  return m ? `${m[1]}/${m[2]}` : null;
+}
+
+// Vincula un repo YA existente (de la cuenta del creador) a la idea, usando su
+// user token OAuth. No requiere Installation ID de GitHub App.
+export async function vincularRepoExistente(
+  proyectoId: string,
+  repoInput: string,
+): Promise<{ ok: boolean; error?: string; repo?: string; url?: string }> {
+  await requireSession();
+  const { env } = getCloudflareContext();
+  const db = getDb();
+
+  const repo = normalizeRepo(repoInput);
+  if (!repo)
+    return { ok: false, error: "Formato inválido. Usa owner/repo o la URL." };
+
+  const proj = await db
+    .select()
+    .from(proyectos)
+    .where(eq(proyectos.id, proyectoId))
+    .get();
+  if (!proj) return { ok: false, error: "Proyecto no encontrado" };
+  if (!proj.creadoPor)
+    return { ok: false, error: "La idea no tiene creador asignado" };
+
+  const token = await getUserToken(env, proj.creadoPor);
+  if (!token)
+    return {
+      ok: false,
+      error: "El creador de la idea debe conectar su GitHub en Perfil",
+    };
+
+  let info;
+  try {
+    info = await getRepo(token, repo);
+  } catch (e) {
+    console.error("[vincularRepoExistente]", e);
+    return {
+      ok: false,
+      error: "No se pudo acceder al repo (¿existe y el creador tiene acceso?)",
+    };
+  }
+
+  await db
+    .update(proyectos)
+    .set({
+      repoGithub: info.full_name,
+      installationId: null,
+      milestoneId: null,
+      milestoneTitulo: null,
+    })
+    .where(eq(proyectos.id, proyectoId));
+
+  await db.insert(eventosProgreso).values({
+    id: newId(),
+    proyectoId,
+    tipo: "repo",
+    descripcion: `Repositorio vinculado: ${info.full_name}.`,
+  });
+
+  await refrescarProgreso(proyectoId);
+  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  revalidatePath("/admin/kanban");
+  return { ok: true, repo: info.full_name, url: info.html_url };
 }
 
 // Crea el repo en la cuenta del socio que CREÓ la idea. Devuelve resultado.

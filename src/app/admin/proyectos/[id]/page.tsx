@@ -12,6 +12,7 @@ import {
   proyectos,
 } from "@/db/schema";
 import { StageEditor } from "./stage-editor";
+import { EtapasManager } from "./etapas-manager";
 import { ActiveToggle } from "./active-toggle";
 import { PublicLink } from "./public-link";
 import { GithubPanel } from "./github-panel";
@@ -133,6 +134,9 @@ export default async function ProyectoDetalle({
                 proyectoId={proj.id}
                 etapaActual={proj.etapaActual}
                 etapas={stageNames}
+              />
+              <EtapasManager
+                etapas={listaEtapas.map((e) => ({ id: e.id, nombre: e.nombre }))}
               />
             </div>
           </section>

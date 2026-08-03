@@ -130,6 +130,32 @@ export const issuesPropuestos = sqliteTable(
   (t) => [index("issues_propuestos_proyecto_idx").on(t.proyectoId)],
 );
 
+// --- Bug tracker global (errores) ---
+// Independiente de las propuestas IA. Un error puede o no ligarse a un proyecto
+// (p.ej. bugs de garantía tras entregar). Prioridad para atacarlos por orden.
+export const bugs = sqliteTable(
+  "bugs",
+  {
+    id: text("id").primaryKey(),
+    titulo: text("titulo").notNull(),
+    descripcion: text("descripcion"),
+    prioridad: text("prioridad").notNull().default("media"), // alta | media | baja
+    estado: text("estado").notNull().default("abierto"), // abierto | en_progreso | resuelto
+    proyectoId: text("proyecto_id").references(() => proyectos.id, {
+      onDelete: "set null",
+    }),
+    creadoPor: text("creado_por").references(() => usuarios.id),
+    githubIssueNumber: integer("github_issue_number"),
+    githubIssueUrl: text("github_issue_url"),
+    creadoEn: text("creado_en").notNull().default(now),
+    resueltoEn: text("resuelto_en"),
+  },
+  (t) => [
+    index("bugs_estado_idx").on(t.estado),
+    index("bugs_proyecto_idx").on(t.proyectoId),
+  ],
+);
+
 // --- Historial de eventos de progreso (Módulo 3) ---
 export const eventosProgreso = sqliteTable(
   "eventos_progreso",
@@ -173,3 +199,4 @@ export type EventoProgreso = typeof eventosProgreso.$inferSelect;
 export type MensajeChat = typeof mensajesChat.$inferSelect;
 export type GithubCuenta = typeof githubCuentas.$inferSelect;
 export type IssuePropuesto = typeof issuesPropuestos.$inferSelect;
+export type Bug = typeof bugs.$inferSelect;

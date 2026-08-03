@@ -14,7 +14,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { crearProyecto, moverTarjeta, agregarComentario } from "../actions";
+import {
+  crearProyecto,
+  moverTarjeta,
+  agregarComentario,
+  eliminarProyecto,
+} from "../actions";
 
 type Columna = "idea" | "en_progreso" | "listo" | "pausado";
 
@@ -105,6 +110,12 @@ export function KanbanBoard({ cards: initial }: { cards: KanbanCard[] }) {
     await moverTarjeta(cardId, overCol, orden);
   }
 
+  async function handleDelete(cardId: string) {
+    setCards((prev) => prev.filter((c) => c.id !== cardId));
+    setOpenCard(null);
+    await eliminarProyecto(cardId);
+  }
+
   const active = cards.find((c) => c.id === activeId) ?? null;
 
   return (
@@ -129,6 +140,7 @@ export function KanbanBoard({ cards: initial }: { cards: KanbanCard[] }) {
         <CardModal
           card={cards.find((c) => c.id === openCard.id) ?? openCard}
           onClose={() => setOpenCard(null)}
+          onDelete={handleDelete}
         />
       )}
     </>
@@ -274,10 +286,20 @@ function NewIdeaForm() {
   );
 }
 
-function CardModal({ card, onClose }: { card: KanbanCard; onClose: () => void }) {
+function CardModal({
+  card,
+  onClose,
+  onDelete,
+}: {
+  card: KanbanCard;
+  onClose: () => void;
+  onDelete: (id: string) => void | Promise<void>;
+}) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -355,6 +377,39 @@ function CardModal({ card, onClose }: { card: KanbanCard; onClose: () => void })
               Enviar
             </button>
           </form>
+        </div>
+
+        <div className="mt-6 border-t border-white/5 pt-4">
+          {!confirmDel ? (
+            <button
+              onClick={() => setConfirmDel(true)}
+              className="text-xs font-medium text-pink-500/80 hover:text-pink-400"
+            >
+              Eliminar idea
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">
+                ¿Eliminar «{card.nombre}» y todo su historial?
+              </span>
+              <button
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  await onDelete(card.id);
+                }}
+                className="rounded-lg bg-pink-500/90 px-2.5 py-1 text-xs font-semibold text-white hover:bg-pink-500 disabled:opacity-50"
+              >
+                {deleting ? "Eliminando…" : "Sí, eliminar"}
+              </button>
+              <button
+                onClick={() => setConfirmDel(false)}
+                className="text-xs text-slate-500 hover:text-slate-300"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

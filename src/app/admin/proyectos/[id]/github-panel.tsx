@@ -4,16 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   crearRepoParaIdea,
-  vincularGithub,
+  vincularRepoExistente,
   refrescarProgreso,
 } from "../../actions";
 
 export function GithubPanel({
   proyectoId,
   repoGithub,
-  installationId,
-  milestoneId,
-  milestoneTitulo,
   creadorLogin,
 }: {
   proyectoId: string;
@@ -26,12 +23,8 @@ export function GithubPanel({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [advanced, setAdvanced] = useState(false);
-
+  const [linking, setLinking] = useState(false);
   const [repo, setRepo] = useState(repoGithub ?? "");
-  const [inst, setInst] = useState(installationId?.toString() ?? "");
-  const [ms, setMs] = useState(milestoneId?.toString() ?? "");
-  const [msTitle, setMsTitle] = useState(milestoneTitulo ?? "");
 
   function crearRepo() {
     setError(null);
@@ -42,14 +35,15 @@ export function GithubPanel({
     });
   }
 
-  function saveManual() {
+  function linkExisting() {
+    setError(null);
     start(async () => {
-      await vincularGithub(proyectoId, {
-        repoGithub: repo,
-        installationId: Number(inst),
-        milestoneId: ms ? Number(ms) : null,
-        milestoneTitulo: msTitle || null,
-      });
+      const res = await vincularRepoExistente(proyectoId, repo);
+      if (!res.ok) {
+        setError(res.error ?? "Error");
+      } else {
+        setLinking(false);
+      }
       router.refresh();
     });
   }
@@ -92,22 +86,32 @@ export function GithubPanel({
         <div className="mt-3">
           <p className="text-sm text-slate-400">
             Cuando la idea esté lista, crea el repositorio en la cuenta del
-            <strong className="text-slate-200"> creador de la idea</strong>.
+            <strong className="text-slate-200"> creador de la idea</strong>, o
+            vincula uno que ya exista.
           </p>
-          <button
-            onClick={crearRepo}
-            disabled={pending || !creadorLogin}
-            className="btn-primary mt-3"
-          >
-            {pending ? "Creando…" : "Crear repositorio"}
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={crearRepo}
+              disabled={pending || !creadorLogin}
+              className="btn-primary"
+            >
+              {pending ? "Creando…" : "Crear repositorio"}
+            </button>
+            <button
+              onClick={() => setLinking((v) => !v)}
+              disabled={!creadorLogin}
+              className="btn-ghost"
+            >
+              Vincular repo existente
+            </button>
+          </div>
           {!creadorLogin && (
             <p className="mt-2 text-xs text-amber-400">
               El creador de la idea debe conectar su GitHub en Perfil antes de
-              crear el repo.
+              crear o vincular un repo.
             </p>
           )}
-          {creadorLogin && (
+          {creadorLogin && !linking && (
             <p className="mt-2 text-xs text-slate-500">
               Se creará como <span className="font-mono">@{creadorLogin}</span> ·
               privado.
@@ -122,73 +126,55 @@ export function GithubPanel({
         </p>
       )}
 
-      <button
-        onClick={() => setAdvanced((v) => !v)}
-        className="mt-4 text-xs text-slate-500 hover:text-slate-300"
-      >
-        {advanced ? "Ocultar" : "Vincular repo existente (avanzado) ›"}
-      </button>
-
-      {advanced && (
+      {/* Vincular repo existente por OAuth (sin Installation ID) */}
+      {linking && (
         <div className="mt-3 border-t border-white/5 pt-3">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Field label="Repositorio (owner/repo)">
-              <input
-                value={repo}
-                onChange={(e) => setRepo(e.target.value)}
-                placeholder="sacortech/proyecto-x"
-                className="input"
-              />
-            </Field>
-            <Field label="Installation ID">
-              <input
-                value={inst}
-                onChange={(e) => setInst(e.target.value)}
-                placeholder="12345678"
-                inputMode="numeric"
-                className="input"
-              />
-            </Field>
-            <Field label="Milestone ID (opcional)">
-              <input
-                value={ms}
-                onChange={(e) => setMs(e.target.value)}
-                inputMode="numeric"
-                className="input"
-              />
-            </Field>
-            <Field label="Milestone título (opcional)">
-              <input
-                value={msTitle}
-                onChange={(e) => setMsTitle(e.target.value)}
-                className="input"
-              />
-            </Field>
+          <label className="block">
+            <span className="label">Repositorio existente (owner/repo o URL)</span>
+            <input
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder="JaimeCordero26/mi-repo"
+              autoFocus
+              className="input"
+            />
+          </label>
+          <p className="mt-1.5 text-xs text-slate-500">
+            Debe pertenecer a{" "}
+            <span className="font-mono">@{creadorLogin}</span> o ser accesible
+            con su cuenta.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={linkExisting}
+              disabled={pending || !repo.trim()}
+              className="btn-primary"
+            >
+              {pending ? "Vinculando…" : "Vincular y calcular"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLinking(false)}
+              className="btn-ghost"
+            >
+              Cancelar
+            </button>
           </div>
-          <button
-            onClick={saveManual}
-            disabled={pending || !repo || !inst}
-            className="btn-ghost mt-3"
-          >
-            Guardar y calcular
-          </button>
         </div>
       )}
-    </section>
-  );
-}
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="label">{label}</span>
-      {children}
-    </label>
+      {/* Cuando ya hay repo, permitir cambiarlo */}
+      {repoGithub && !linking && (
+        <button
+          onClick={() => {
+            setRepo("");
+            setLinking(true);
+          }}
+          className="mt-4 text-xs text-slate-500 hover:text-slate-300"
+        >
+          Vincular otro repo ›
+        </button>
+      )}
+    </section>
   );
 }

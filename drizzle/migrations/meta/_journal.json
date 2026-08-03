@@ -15,6 +15,13 @@
       "when": 1785739409417,
       "tag": "0001_sharp_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785775182671,
+      "tag": "0002_futuristic_tombstone",
+      "breakpoints": true
     }
   ]
 }
