@@ -1,0 +1,32 @@
+
+Deploy dale. Ojo: wrangler login es interactivo (navegador) — eso lo corrés vos. Primero veo si ya estás autenticado y qué recursos faltan.
+
+  Ran 1 shell command
+
+Ya estás logueado (sacortech@gmail.com, cuenta 276cbf...). Red funciona. Creo los recursos.
+
+1. D1 database:
+
+  Ran 1 shell command
+
+D1 creada: b05f2cb9-5f05-425e-a696-7af6c4d1ca11. La pongo en wrangler.jsonc.
+
+● Update(wrangler.jsonc)
+Added 1 line, removed 2 lines
+    {
+      "binding": "DB",
+      "database_name": "sacortech-db",
+      // Replace with the real id after `wrangler d1 create sacortech-db`.
+      "database_id": "REPLACE_WITH_D1_DATA
+      "database_id": "b05f2cb9-5f05-425e-a696-7af6c4d1ca11",
+      "migrations_dir": "drizzle/migration
+    }
+  ],
+
+2. R2 bucket + migraciones remotas:
+
+  Ran 1 shell command
+You've hit your session limit · resets 3:40am (America/New_York)
+/upgrade to increase your usage limit.
+
+✻ Cogitated for 2m 12s · 1 shell still running

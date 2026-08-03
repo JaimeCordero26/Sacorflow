@@ -1,0 +1,29 @@
+# Copy to .dev.vars for local `next dev` / `wrangler dev`. Never commit .dev.vars.
+
+# HMAC key used to sign session cookies. Generate: openssl rand -hex 32
+SESSION_SECRET="change-me-32-bytes-hex"
+
+# Seed users (used by scripts/seed.ts). Two partners only.
+SEED_USER1_NOMBRE="Socio Uno"
+SEED_USER1_EMAIL="socio1@sacortech.com"
+SEED_USER1_PASSWORD="change-me"
+SEED_USER2_NOMBRE="Socio Dos"
+SEED_USER2_EMAIL="socio2@sacortech.com"
+SEED_USER2_PASSWORD="change-me"
+
+# GitHub App. Create at https://github.com/settings/apps
+# Callback URL (Authorization callback): https://<tu-dominio>/api/github/callback
+#   (para probar local también añade http://localhost:8787/api/github/callback)
+# "Entrar con GitHub" usa CLIENT_ID + CLIENT_SECRET (obligatorio en cualquier login GitHub).
+GITHUB_APP_ID=""
+GITHUB_APP_CLIENT_ID=""
+GITHUB_APP_CLIENT_SECRET=""
+GITHUB_APP_PRIVATE_KEY=""   # PEM, newlines as \n (solo para la GitHub App clásica / webhooks)
+GITHUB_WEBHOOK_SECRET=""
+
+# Login: SOLO estos usuarios de GitHub pueden entrar (los dos socios), coma-separado.
+GITHUB_ALLOWED_LOGINS="JaimeCordero26,elotrosocio"
+
+# Telegram notifications (Module 8)
+TELEGRAM_BOT_TOKEN=""
+TELEGRAM_CHAT_ID=""
