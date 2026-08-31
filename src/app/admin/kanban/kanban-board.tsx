@@ -21,7 +21,7 @@ import {
   eliminarProyecto,
 } from "../actions";
 
-type Columna = "idea" | "en_progreso" | "listo" | "pausado";
+type Columna = "idea" | "en_progreso" | "listo" | "pausado"| "cancelado" | "entregado" | "cerrado";
 
 export interface Autor {
   nombre: string;
@@ -46,6 +46,9 @@ const COLUMNS: { key: Columna; label: string; dot: string }[] = [
   { key: "en_progreso", label: "En progreso", dot: "bg-violet-500" },
   { key: "listo", label: "Listos", dot: "bg-pink-500" },
   { key: "pausado", label: "Pausado", dot: "bg-slate-500" },
+  { key: "cancelado", label: "Cancelado", dot: "bg-red-500" },
+  { key: "entregado", label: "Entregado", dot: "bg-green-500" },
+  { key: "cerrado", label: "Cerrado", dot: "bg-gray-500" },
 ];
 
 function Avatar({ autor, size = 20 }: { autor: Autor; size?: number }) {
