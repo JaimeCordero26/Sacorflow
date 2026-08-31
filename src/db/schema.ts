@@ -35,7 +35,7 @@ export const etapas = sqliteTable("etapas", {
   orden: integer("orden").notNull().default(0),
 });
 
-export type ColumnaKanban = "idea" | "en_progreso" | "listo" | "pausado";
+export type ColumnaKanban = "idea" | "en_progreso" | "listo" | "pausado"| "cancelado" | "entregado" | "cerrado";
 
 // --- Proyectos ---
 export const proyectos = sqliteTable(
