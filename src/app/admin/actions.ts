@@ -43,7 +43,7 @@ function slugRepo(nombre: string): string {
   return s || `proyecto-${Date.now()}`;
 }
 
-const COLUMNS: ColumnaKanban[] = ["idea", "en_progreso", "listo", "pausado"];
+const COLUMNS: ColumnaKanban[] = ["idea", "en_progreso", "listo", "pausado", "cancelado", "cerrado", "entregado"];
 
 // ---------- Kanban / proyectos ----------
 
