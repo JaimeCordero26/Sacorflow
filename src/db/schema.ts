@@ -156,6 +156,62 @@ export const bugs = sqliteTable(
   ],
 );
 
+// --- Sprints por proyecto ---
+export type ColumnaTarea = "por_hacer" | "en_progreso" | "revision" | "hecho";
+export type EstadoSprint = "planificado" | "activo" | "cerrado";
+
+export const sprints = sqliteTable(
+  "sprints",
+  {
+    id: text("id").primaryKey(),
+    proyectoId: text("proyecto_id")
+      .notNull()
+      .references(() => proyectos.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    estado: text("estado").notNull().default("planificado"), // planificado | activo | cerrado
+    fechaInicio: text("fecha_inicio"),
+    fechaFin: text("fecha_fin"),
+    orden: integer("orden").notNull().default(0),
+    creadoEn: text("creado_en").notNull().default(now),
+    cerradoEn: text("cerrado_en"),
+  },
+  (t) => [
+    index("sprints_proyecto_idx").on(t.proyectoId),
+    index("sprints_estado_idx").on(t.estado),
+  ],
+);
+
+// --- Tareas del tablero de trabajo (sprints + backlog) ---
+export const tareas = sqliteTable(
+  "tareas",
+  {
+    id: text("id").primaryKey(),
+    proyectoId: text("proyecto_id")
+      .notNull()
+      .references(() => proyectos.id, { onDelete: "cascade" }),
+    sprintId: text("sprint_id").references(() => sprints.id, {
+      onDelete: "set null", // null = backlog
+    }),
+    titulo: text("titulo").notNull(),
+    descripcion: text("descripcion"),
+    columnaKanban: text("columna_kanban").notNull().default("por_hacer"),
+    orden: integer("orden").notNull().default(0),
+    origen: text("origen").notNull().default("manual"), // manual | github_import | ia_propuesta
+    githubIssueNumber: integer("github_issue_number"),
+    githubIssueUrl: text("github_issue_url"),
+    githubIssueState: text("github_issue_state"), // "open" | "closed"
+    creadoPor: text("creado_por").references(() => usuarios.id),
+    creadoEn: text("creado_en").notNull().default(now),
+    actualizadoEn: text("actualizado_en").notNull().default(now),
+  },
+  (t) => [
+    index("tareas_proyecto_idx").on(t.proyectoId),
+    index("tareas_sprint_idx").on(t.sprintId),
+    index("tareas_columna_idx").on(t.columnaKanban),
+    index("tareas_proyecto_issue_idx").on(t.proyectoId, t.githubIssueNumber),
+  ],
+);
+
 // --- Historial de eventos de progreso (Módulo 3) ---
 export const eventosProgreso = sqliteTable(
   "eventos_progreso",
@@ -200,3 +256,5 @@ export type MensajeChat = typeof mensajesChat.$inferSelect;
 export type GithubCuenta = typeof githubCuentas.$inferSelect;
 export type IssuePropuesto = typeof issuesPropuestos.$inferSelect;
 export type Bug = typeof bugs.$inferSelect;
+export type Sprint = typeof sprints.$inferSelect;
+export type Tarea = typeof tareas.$inferSelect;

@@ -10,6 +10,8 @@ import {
   mensajesChat,
   proyectoClientes,
   proyectos,
+  sprints,
+  tareas,
 } from "@/db/schema";
 import { StageEditor } from "./stage-editor";
 import { EtapasManager } from "./etapas-manager";
@@ -19,6 +21,7 @@ import { GithubPanel } from "./github-panel";
 import { PropuestasPanel } from "./propuestas-panel";
 import { ClientLinker } from "./client-linker";
 import { AdminChat } from "./admin-chat";
+import { SprintBoard } from "./sprint-board/sprint-board";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +44,8 @@ export default async function ProyectoDetalle({
     vinculados,
     propuestas,
     creadorGh,
+    listaSprints,
+    listaTareas,
   ] = await Promise.all([
     db.select().from(etapas).orderBy(asc(etapas.orden)).all(),
     db
@@ -75,6 +80,8 @@ export default async function ProyectoDetalle({
           .where(eq(githubCuentas.usuarioId, proj.creadoPor))
           .get()
       : Promise.resolve(undefined),
+    db.select().from(sprints).where(eq(sprints.proyectoId, id)).orderBy(asc(sprints.orden)).all(),
+    db.select().from(tareas).where(eq(tareas.proyectoId, id)).all(),
   ]);
 
   await db
@@ -112,6 +119,30 @@ export default async function ProyectoDetalle({
         </div>
         <ActiveToggle proyectoId={proj.id} activo={proj.activo} />
       </div>
+
+      <SprintBoard
+        proyectoId={proj.id}
+        tieneRepo={!!proj.repoGithub}
+        sprints={listaSprints.map((s) => ({
+          id: s.id,
+          nombre: s.nombre,
+          estado: s.estado as "planificado" | "activo" | "cerrado",
+          fechaInicio: s.fechaInicio,
+          fechaFin: s.fechaFin,
+          orden: s.orden,
+        }))}
+        tareas={listaTareas.map((t) => ({
+          id: t.id,
+          titulo: t.titulo,
+          descripcion: t.descripcion,
+          columna: t.columnaKanban as "por_hacer" | "en_progreso" | "revision" | "hecho",
+          orden: t.orden,
+          sprintId: t.sprintId,
+          origen: t.origen as "manual" | "github_import" | "ia_propuesta",
+          githubIssueNumber: t.githubIssueNumber,
+          githubIssueUrl: t.githubIssueUrl,
+        }))}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

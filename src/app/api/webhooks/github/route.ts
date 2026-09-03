@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { eventosProgreso, proyectos } from "@/db/schema";
+import { eventosProgreso, proyectos, tareas } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { computeProgress, verifyWebhookSignature } from "@/lib/github";
 
@@ -95,6 +95,20 @@ export async function POST(req: NextRequest) {
         descripcion: desc,
         progresoPct: pct,
       });
+    }
+
+    // Sincroniza la tarea vinculada (si existe) con el estado real del issue.
+    if (event === "issues" && (payload.action === "closed" || payload.action === "reopened")) {
+      const issueNumber = payload.issue?.number;
+      if (issueNumber != null) {
+        await db
+          .update(tareas)
+          .set({
+            columnaKanban: payload.action === "closed" ? "hecho" : "por_hacer",
+            githubIssueState: payload.action === "closed" ? "closed" : "open",
+          })
+          .where(and(eq(tareas.proyectoId, proj.id), eq(tareas.githubIssueNumber, issueNumber)));
+      }
     }
   }
 

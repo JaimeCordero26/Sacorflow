@@ -282,6 +282,47 @@ export async function createWebhook(
   });
 }
 
+export interface GithubIssueLite {
+  number: number;
+  title: string;
+  html_url: string;
+  state: "open" | "closed";
+}
+
+// Lista issues reales del repo (excluye PRs), paginando hasta maxPages. Usa el user token.
+export async function listIssues(
+  token: string,
+  repo: string,
+  opts?: { state?: "open" | "closed" | "all"; maxPages?: number },
+): Promise<GithubIssueLite[]> {
+  const state = opts?.state ?? "open";
+  const maxPages = opts?.maxPages ?? 4;
+  const out: GithubIssueLite[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const raw = await ghFetch<
+      Array<{
+        number: number;
+        title: string;
+        html_url: string;
+        state: string;
+        pull_request?: unknown;
+      }>
+    >(token, `/repos/${repo}/issues?state=${state}&per_page=100&page=${page}`);
+    out.push(
+      ...raw
+        .filter((i) => !i.pull_request)
+        .map((i) => ({
+          number: i.number,
+          title: i.title,
+          html_url: i.html_url,
+          state: i.state as "open" | "closed",
+        })),
+    );
+    if (raw.length < 100) break;
+  }
+  return out;
+}
+
 // Progreso = issues cerrados / totales (excluye PRs). Usa el user token.
 export async function progressWithToken(
   token: string,

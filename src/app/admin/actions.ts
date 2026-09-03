@@ -15,6 +15,7 @@ import {
   mensajesChat,
   proyectoClientes,
   proyectos,
+  tareas,
   usuarios,
   type ColumnaKanban,
 } from "@/db/schema";
@@ -639,6 +640,18 @@ export async function crearIssuesAceptados(
           githubIssueUrl: issue.html_url,
         })
         .where(eq(issuesPropuestos.id, p.id));
+      // También aparece como tarea en el tablero de sprints/backlog del proyecto.
+      await db.insert(tareas).values({
+        id: newId(),
+        proyectoId,
+        titulo: p.titulo,
+        columnaKanban: "por_hacer",
+        origen: "github_import",
+        githubIssueNumber: issue.number,
+        githubIssueUrl: issue.html_url,
+        githubIssueState: "open",
+        creadoPor: proj.creadoPor,
+      });
       creados++;
     } catch (e) {
       console.error("[crearIssuesAceptados]", e);
