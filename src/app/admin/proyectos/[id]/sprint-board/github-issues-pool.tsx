@@ -1,9 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
+import { IssueDetailModal } from "./issue-detail-modal";
 import { GH_DRAG_PREFIX, type GithubIssueLite } from "./types";
 
-function DraggableIssue({ issue }: { issue: GithubIssueLite }) {
+function DraggableIssue({
+  issue,
+  onVerDetalle,
+}: {
+  issue: GithubIssueLite;
+  onVerDetalle: (n: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${GH_DRAG_PREFIX}${issue.number}`,
     data: { issue },
@@ -18,22 +26,39 @@ function DraggableIssue({ issue }: { issue: GithubIssueLite }) {
       }`}
     >
       <p className="text-sm text-white">{issue.title}</p>
-      <p className="mt-0.5 text-xs text-slate-500">#{issue.number}</p>
+      <div className="mt-0.5 flex items-center justify-between">
+        <p className="text-xs text-slate-500">#{issue.number}</p>
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onVerDetalle(issue.number);
+          }}
+          className="text-xs font-medium text-brand-400 hover:underline"
+        >
+          Ver detalle
+        </button>
+      </div>
     </div>
   );
 }
 
 export function GithubIssuesPool({
+  proyectoId,
   issues,
   loading,
   error,
   onReload,
 }: {
+  proyectoId: string;
   issues: GithubIssueLite[] | null;
   loading: boolean;
   error: string | null;
   onReload: () => void;
 }) {
+  const [detalleNumero, setDetalleNumero] = useState<number | null>(null);
+  const issueDetalle = issues?.find((i) => i.number === detalleNumero) ?? null;
+
   return (
     <div className="rounded-xl border border-white/10 bg-ink-900/40 p-3">
       <div className="mb-3 flex items-center justify-between">
@@ -50,8 +75,19 @@ export function GithubIssuesPool({
         {issues?.length === 0 && (
           <p className="text-xs text-slate-500">No hay issues abiertos disponibles.</p>
         )}
-        {issues?.map((i) => <DraggableIssue key={i.number} issue={i} />)}
+        {issues?.map((i) => (
+          <DraggableIssue key={i.number} issue={i} onVerDetalle={setDetalleNumero} />
+        ))}
       </div>
+
+      {issueDetalle && (
+        <IssueDetailModal
+          proyectoId={proyectoId}
+          issueNumber={issueDetalle.number}
+          fallbackUrl={issueDetalle.html_url}
+          onClose={() => setDetalleNumero(null)}
+        />
+      )}
     </div>
   );
 }

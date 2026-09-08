@@ -152,6 +152,7 @@ export function SprintBoard({
           {tieneRepo && (
             <div className="lg:col-span-1">
               <GithubIssuesPool
+                proyectoId={proyectoId}
                 issues={issues}
                 loading={issuesLoading}
                 error={issuesError}

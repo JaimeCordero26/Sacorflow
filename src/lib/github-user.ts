@@ -323,6 +323,58 @@ export async function listIssues(
   return out;
 }
 
+export interface GithubLabel {
+  name: string;
+  color: string; // hex sin "#"
+}
+
+export interface GithubActor {
+  login: string;
+  avatar_url: string;
+}
+
+export interface GithubIssueDetail {
+  number: number;
+  title: string;
+  html_url: string;
+  state: "open" | "closed";
+  body: string | null;
+  user: GithubActor | null;
+  assignees: GithubActor[];
+  labels: GithubLabel[];
+  comments: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GithubIssueComment {
+  id: number;
+  body: string | null;
+  user: GithubActor | null;
+  created_at: string;
+}
+
+// Detalle completo de un issue (para mostrarlo sin salir a GitHub). Usa el user token.
+export async function getIssueDetail(
+  token: string,
+  repo: string,
+  number: number,
+): Promise<GithubIssueDetail> {
+  return ghFetch<GithubIssueDetail>(token, `/repos/${repo}/issues/${number}`);
+}
+
+// Comentarios de un issue, en orden cronológico. Usa el user token.
+export async function listIssueComments(
+  token: string,
+  repo: string,
+  number: number,
+): Promise<GithubIssueComment[]> {
+  return ghFetch<GithubIssueComment[]>(
+    token,
+    `/repos/${repo}/issues/${number}/comments?per_page=100`,
+  );
+}
+
 // Progreso = issues cerrados / totales (excluye PRs). Usa el user token.
 export async function progressWithToken(
   token: string,

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { eliminarTarea, moverTareaASprint } from "../sprint-actions";
+import { IssueDetailModal } from "./issue-detail-modal";
 import type { SprintInfo, TareaCard } from "./types";
 
 export function TareaModal({
@@ -19,6 +20,7 @@ export function TareaModal({
 }) {
   const [pending, start] = useTransition();
   const [confirmDel, setConfirmDel] = useState(false);
+  const [verIssue, setVerIssue] = useState(false);
 
   function mover(sprintId: string | null) {
     start(async () => {
@@ -53,14 +55,22 @@ export function TareaModal({
           <p className="mt-2 text-sm text-slate-300">{tarea.descripcion}</p>
         )}
         {tarea.githubIssueNumber && (
-          <a
-            href={tarea.githubIssueUrl ?? "#"}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block text-sm font-medium text-brand-400 hover:underline"
-          >
-            #{tarea.githubIssueNumber} en GitHub ↗
-          </a>
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              onClick={() => setVerIssue(true)}
+              className="text-sm font-medium text-brand-400 hover:underline"
+            >
+              Ver detalle del issue #{tarea.githubIssueNumber}
+            </button>
+            <a
+              href={tarea.githubIssueUrl ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-slate-500 hover:text-slate-300"
+            >
+              Abrir en GitHub ↗
+            </a>
+          </div>
         )}
 
         <div className="mt-5">
@@ -114,6 +124,15 @@ export function TareaModal({
           )}
         </div>
       </div>
+
+      {verIssue && tarea.githubIssueNumber && (
+        <IssueDetailModal
+          proyectoId={proyectoId}
+          issueNumber={tarea.githubIssueNumber}
+          fallbackUrl={tarea.githubIssueUrl}
+          onClose={() => setVerIssue(false)}
+        />
+      )}
     </div>
   );
 }

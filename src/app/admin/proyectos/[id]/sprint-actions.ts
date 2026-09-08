@@ -7,7 +7,15 @@ import { getDb } from "@/db";
 import { proyectos, sprints, tareas, type ColumnaTarea } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
 import { newId } from "@/lib/ids";
-import { getUserToken, listIssues, type GithubIssueLite } from "@/lib/github-user";
+import {
+  getIssueDetail,
+  getUserToken,
+  listIssueComments,
+  listIssues,
+  type GithubIssueComment,
+  type GithubIssueDetail,
+  type GithubIssueLite,
+} from "@/lib/github-user";
 
 const COLUMNAS: ColumnaTarea[] = ["por_hacer", "en_progreso", "revision", "hecho"];
 
@@ -181,5 +189,42 @@ export async function cargarIssuesDisponibles(
   } catch (e) {
     console.error("[cargarIssuesDisponibles]", e);
     return { ok: false, error: "No se pudieron cargar los issues de GitHub." };
+  }
+}
+
+// Detalle de un issue puntual (body, labels, asignados, comentarios) para
+// mostrarlo dentro del tablero sin salir a GitHub.
+export async function cargarDetalleIssue(
+  proyectoId: string,
+  issueNumber: number,
+): Promise<{
+  ok: boolean;
+  detalle?: GithubIssueDetail;
+  comentarios?: GithubIssueComment[];
+  error?: string;
+}> {
+  await requireSession();
+  const { env } = getCloudflareContext();
+  const db = getDb();
+
+  const proj = await db
+    .select({ repoGithub: proyectos.repoGithub, creadoPor: proyectos.creadoPor })
+    .from(proyectos)
+    .where(eq(proyectos.id, proyectoId))
+    .get();
+  if (!proj?.repoGithub) return { ok: false, error: "El proyecto no tiene repo vinculado." };
+
+  const token = proj.creadoPor ? await getUserToken(env, proj.creadoPor) : null;
+  if (!token) return { ok: false, error: "El creador del proyecto no tiene GitHub conectado." };
+
+  try {
+    const [detalle, comentarios] = await Promise.all([
+      getIssueDetail(token, proj.repoGithub, issueNumber),
+      listIssueComments(token, proj.repoGithub, issueNumber),
+    ]);
+    return { ok: true, detalle, comentarios };
+  } catch (e) {
+    console.error("[cargarDetalleIssue]", e);
+    return { ok: false, error: "No se pudo cargar el detalle del issue." };
   }
 }
