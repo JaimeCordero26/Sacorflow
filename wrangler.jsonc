@@ -6,10 +6,13 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 
   // Dominio: usa un SUBDOMINIO para no pisar el sitio principal sacortech.xyz.
-  // Descomenta y ajusta tras crear la zona/DNS en Cloudflare:
-  // "routes": [
-  //   { "pattern": "dashboard.sacortech.xyz", "custom_domain": true }
-  // ],
+  "routes": [
+    { "pattern": "dashboard.sacortech.xyz", "custom_domain": true }
+  ],
+  // Al definir "routes", wrangler desactiva *.workers.dev por defecto.
+  // La mantenemos activa para no romper integraciones (ej. GitHub OAuth
+  // callback) que puedan seguir apuntando a la URL vieja.
+  "workers_dev": true,
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
