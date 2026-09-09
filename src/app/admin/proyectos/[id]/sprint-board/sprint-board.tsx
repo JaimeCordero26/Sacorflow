@@ -149,6 +149,7 @@ export function SprintBoard({
                 tareas={tareasSprint.filter((t) => t.columna === col.key)}
                 proyectoId={proyectoId}
                 sprintId={sprintSeleccionado}
+                tieneRepo={tieneRepo}
                 onOpen={setOpenTarea}
                 onVerIssue={setVerIssueTarea}
               />

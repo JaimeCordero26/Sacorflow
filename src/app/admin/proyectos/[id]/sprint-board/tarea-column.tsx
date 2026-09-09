@@ -10,6 +10,7 @@ export function TareaColumn({
   tareas,
   proyectoId,
   sprintId,
+  tieneRepo,
   onOpen,
   onVerIssue,
 }: {
@@ -17,6 +18,7 @@ export function TareaColumn({
   tareas: TareaCard[];
   proyectoId: string;
   sprintId: string | null;
+  tieneRepo: boolean;
   onOpen: (t: TareaCard) => void;
   onVerIssue: (t: TareaCard) => void;
 }) {
@@ -39,7 +41,7 @@ export function TareaColumn({
       </div>
       <div className="flex flex-col gap-2">
         {col.key === "por_hacer" && (
-          <NewTareaForm proyectoId={proyectoId} sprintId={sprintId} />
+          <NewTareaForm proyectoId={proyectoId} sprintId={sprintId} tieneRepo={tieneRepo} />
         )}
         {tareas.map((t) => (
           <DraggableTarea key={t.id} tarea={t} onOpen={onOpen} onVerIssue={onVerIssue} />

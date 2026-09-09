@@ -8,6 +8,7 @@ import { proyectos, sprints, tareas, type ColumnaTarea } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
 import { newId } from "@/lib/ids";
 import {
+  createIssue,
   getIssueDetail,
   getUserToken,
   listIssueComments,
@@ -84,6 +85,38 @@ export async function crearTarea(
   const t = titulo.trim();
   if (!t) return;
   const db = getDb();
+
+  // Si el proyecto tiene repo vinculado y el creador conectó GitHub, la tarea
+  // nace también como issue real (no solo como fila local) para que se vea y
+  // se pueda seguir igual que un issue importado.
+  let githubIssueNumber: number | null = null;
+  let githubIssueUrl: string | null = null;
+  let githubIssueState: "open" | null = null;
+
+  const proj = await db
+    .select({ repoGithub: proyectos.repoGithub, creadoPor: proyectos.creadoPor })
+    .from(proyectos)
+    .where(eq(proyectos.id, proyectoId))
+    .get();
+
+  if (proj?.repoGithub && proj.creadoPor) {
+    const { env } = getCloudflareContext();
+    const token = await getUserToken(env, proj.creadoPor);
+    if (token) {
+      try {
+        const issue = await createIssue(token, proj.repoGithub, {
+          title: t,
+          body: descripcion?.trim() || "",
+        });
+        githubIssueNumber = issue.number;
+        githubIssueUrl = issue.html_url;
+        githubIssueState = "open";
+      } catch (e) {
+        console.error("[crearTarea] no se pudo crear el issue en GitHub", e);
+      }
+    }
+  }
+
   await db.insert(tareas).values({
     id: newId(),
     proyectoId,
@@ -92,6 +125,9 @@ export async function crearTarea(
     descripcion: descripcion?.trim() || null,
     columnaKanban: "por_hacer",
     origen: "manual",
+    githubIssueNumber,
+    githubIssueUrl,
+    githubIssueState,
     creadoPor: session.uid,
   });
   revalidatePath(`/admin/proyectos/${proyectoId}`);
