@@ -199,6 +199,7 @@ export function SprintBoard({
         <IssueDetailModal
           proyectoId={proyectoId}
           issueNumber={verIssueTarea.githubIssueNumber}
+          title={verIssueTarea.titulo}
           fallbackUrl={verIssueTarea.githubIssueUrl}
           onClose={() => setVerIssueTarea(null)}
         />

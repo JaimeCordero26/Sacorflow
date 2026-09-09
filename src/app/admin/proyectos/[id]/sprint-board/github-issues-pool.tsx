@@ -84,6 +84,7 @@ export function GithubIssuesPool({
         <IssueDetailModal
           proyectoId={proyectoId}
           issueNumber={issueDetalle.number}
+          title={issueDetalle.title}
           fallbackUrl={issueDetalle.html_url}
           onClose={() => setDetalleNumero(null)}
         />
