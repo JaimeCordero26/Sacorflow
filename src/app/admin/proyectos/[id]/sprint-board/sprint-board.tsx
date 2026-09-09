@@ -14,6 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { cargarIssuesDisponibles, importarIssueComoTarea, moverTarea } from "../sprint-actions";
 import { GithubIssuesPool } from "./github-issues-pool";
+import { IssueDetailModal } from "./issue-detail-modal";
 import { SprintHeader } from "./sprint-header";
 import { SprintTabs } from "./sprint-tabs";
 import { TareaCardFace } from "./tarea-card";
@@ -50,6 +51,7 @@ export function SprintBoard({
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openTarea, setOpenTarea] = useState<TareaCard | null>(null);
+  const [verIssueTarea, setVerIssueTarea] = useState<TareaCard | null>(null);
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
 
@@ -148,6 +150,7 @@ export function SprintBoard({
                 proyectoId={proyectoId}
                 sprintId={sprintSeleccionado}
                 onOpen={setOpenTarea}
+                onVerIssue={setVerIssueTarea}
               />
             ))}
           </div>
@@ -189,6 +192,15 @@ export function SprintBoard({
           sprints={sprints}
           onClose={() => setOpenTarea(null)}
           onDeleted={() => setOpenTarea(null)}
+        />
+      )}
+
+      {verIssueTarea?.githubIssueNumber && (
+        <IssueDetailModal
+          proyectoId={proyectoId}
+          issueNumber={verIssueTarea.githubIssueNumber}
+          fallbackUrl={verIssueTarea.githubIssueUrl}
+          onClose={() => setVerIssueTarea(null)}
         />
       )}
     </section>

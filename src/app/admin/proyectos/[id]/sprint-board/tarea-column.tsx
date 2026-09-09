@@ -11,12 +11,14 @@ export function TareaColumn({
   proyectoId,
   sprintId,
   onOpen,
+  onVerIssue,
 }: {
   col: { key: ColumnaTarea; label: string; dot: string };
   tareas: TareaCard[];
   proyectoId: string;
   sprintId: string | null;
   onOpen: (t: TareaCard) => void;
+  onVerIssue: (t: TareaCard) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.key });
   return (
@@ -40,7 +42,7 @@ export function TareaColumn({
           <NewTareaForm proyectoId={proyectoId} sprintId={sprintId} />
         )}
         {tareas.map((t) => (
-          <DraggableTarea key={t.id} tarea={t} onOpen={onOpen} />
+          <DraggableTarea key={t.id} tarea={t} onOpen={onOpen} onVerIssue={onVerIssue} />
         ))}
         {tareas.length === 0 && col.key !== "por_hacer" && (
           <p className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-xs text-slate-600">

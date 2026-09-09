@@ -28,7 +28,8 @@ export default async function AdminLayout({
             href="/admin"
             className="flex items-center gap-2 text-sm font-black tracking-tight"
           >
-            <span className="h-6 w-6 rounded-lg bg-brand-gradient shadow-neon" />
+            {/* eslint-disable-next-line @next/next/no-img-element -- next/image no funciona en el runtime de Workers */}
+            <img src="/logo-icon.png" alt="" className="h-6 w-6" />
             <span>
               <span className="text-gradient">Sacor</span>
               <span className="text-white">Tech</span>

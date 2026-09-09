@@ -21,7 +21,8 @@ export default async function LoginPage({
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-brand-gradient shadow-neon" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- next/image no funciona en el runtime de Workers */}
+          <img src="/logo-icon.png" alt="SacorTech" className="mx-auto mb-4 h-14 w-14" />
           <h1 className="text-3xl font-black tracking-tight">
             <span className="text-gradient">Sacor</span>
             <span className="text-white">flow</span>

@@ -7,9 +7,11 @@ import type { TareaCard } from "./types";
 export function DraggableTarea({
   tarea,
   onOpen,
+  onVerIssue,
 }: {
   tarea: TareaCard;
   onOpen: (t: TareaCard) => void;
+  onVerIssue: (t: TareaCard) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: tarea.id,
@@ -22,7 +24,7 @@ export function DraggableTarea({
       onClick={() => onOpen(tarea)}
       className={`cursor-grab ${isDragging ? "opacity-40" : ""}`}
     >
-      <TareaCardFace tarea={tarea} />
+      <TareaCardFace tarea={tarea} onVerIssue={onVerIssue} />
     </div>
   );
 }
