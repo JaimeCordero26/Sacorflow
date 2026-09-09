@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { cargarDetalleIssue } from "../sprint-actions";
 import type { GithubIssueComment, GithubIssueDetail } from "@/lib/github-user";
 
@@ -54,7 +55,7 @@ export function IssueDetailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proyectoId, issueNumber]);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
@@ -181,6 +182,7 @@ export function IssueDetailModal({
           </a>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

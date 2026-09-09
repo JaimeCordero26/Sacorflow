@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -49,6 +50,8 @@ export function SprintBoard({
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openTarea, setOpenTarea] = useState<TareaCard | null>(null);
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
 
   const [issues, setIssues] = useState<GithubIssueLite[] | null>(null);
   const [issuesLoading, setIssuesLoading] = useState(false);
@@ -102,6 +105,9 @@ export function SprintBoard({
   }
 
   const active = tareas.find((t) => t.id === activeId) ?? null;
+  const activeIssue = activeId?.startsWith(GH_DRAG_PREFIX)
+    ? (issues?.find((i) => `${GH_DRAG_PREFIX}${i.number}` === activeId) ?? null)
+    : null;
   const tareasSprint = tareas.filter((t) => t.sprintId === sprintSeleccionado);
   const sprintActual = sprints.find((s) => s.id === sprintSeleccionado) ?? null;
 
@@ -145,9 +151,22 @@ export function SprintBoard({
               />
             ))}
           </div>
-          <DragOverlay>
-            {active ? <TareaCardFace tarea={active} dragging /> : null}
-          </DragOverlay>
+          {montado &&
+            createPortal(
+              // Portal a document.body: el <section className="card"> de arriba usa
+              // backdrop-blur-sm, que vuelve a ese ancestro el containing block de
+              // "position: fixed" y desplaza el DragOverlay respecto al cursor real.
+              <DragOverlay>
+                {active ? <TareaCardFace tarea={active} dragging /> : null}
+                {activeIssue ? (
+                  <div className="rotate-2 rounded-lg border border-brand-500/40 bg-ink-850 p-2.5 shadow-neon">
+                    <p className="text-sm text-white">{activeIssue.title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">#{activeIssue.number}</p>
+                  </div>
+                ) : null}
+              </DragOverlay>,
+              document.body,
+            )}
 
           {tieneRepo && (
             <div className="lg:col-span-1">

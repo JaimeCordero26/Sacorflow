@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { eliminarTarea, moverTareaASprint } from "../sprint-actions";
 import { IssueDetailModal } from "./issue-detail-modal";
 import type { SprintInfo, TareaCard } from "./types";
@@ -36,7 +37,11 @@ export function TareaModal({
     });
   }
 
-  return (
+  // Portal a document.body: si esto se renderiza dentro de un ancestro con
+  // backdrop-filter/filter/transform (ej. la sección ".card" del tablero),
+  // ese ancestro se vuelve el containing block de "fixed" y el modal queda
+  // recortado/desplazado en vez de cubrir toda la pantalla.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
@@ -133,6 +138,7 @@ export function TareaModal({
           onClose={() => setVerIssue(false)}
         />
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
