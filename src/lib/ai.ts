@@ -21,8 +21,10 @@ de software y los comentarios de los socios. Tu tarea es desglosarla en tareas d
 implementación concretas y accionables (issues de GitHub).
 Responde EXCLUSIVAMENTE con un array JSON válido, sin texto adicional, con la forma:
 [{"titulo":"...","cuerpo":"..."}]
-Reglas: 5 a 10 items; titulo corto e imperativo (ej. "Configurar autenticación");
-cuerpo con 1-3 frases de detalle o criterios de aceptación; todo en español.`;
+Reglas: 5 a 10 items; titulo corto e imperativo (ej. "Set up authentication");
+cuerpo con 1-3 frases de detalle o criterios de aceptación; todo en inglés (los
+issues de GitHub deben quedar en inglés), aunque la idea y los comentarios de
+entrada estén en español.`;
 
 // Extrae el primer array JSON del texto del modelo (tolera ruido alrededor).
 function parseIssues(text: string): IssueSugerido[] {
