@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const ERRORES: Record<string, string> = {
+const ERRORS: Record<string, string> = {
   oauth: "El inicio de sesión con GitHub falló o expiró. Intenta de nuevo.",
   token: "No se pudo obtener el acceso de GitHub.",
   denied: "Tu cuenta de GitHub no está autorizada para este panel.",
@@ -30,9 +30,9 @@ export default async function LoginPage({
           <p className="mt-1 text-sm text-slate-400">Panel interno de SacorTech</p>
         </div>
         <div className="card p-6 shadow-neon-violet">
-          {error && ERRORES[error] && (
+          {error && ERRORS[error] && (
             <p className="mb-4 rounded-lg border border-pink-500/30 bg-pink-500/10 px-3 py-2 text-sm text-pink-400">
-              {ERRORES[error]}
+              {ERRORS[error]}
             </p>
           )}
           <a

@@ -32,7 +32,7 @@ export function isAllowed(env: CloudflareEnv, login: string): boolean {
 }
 
 // Encuentra el usuario ligado a esta cuenta GitHub, o lo crea (login = GitHub).
-export async function findOrCreateUsuario(
+export async function findOrCreateUser(
   env: CloudflareEnv,
   user: GithubUser,
 ): Promise<{ id: string; nombre: string; email: string }> {
@@ -53,14 +53,14 @@ export async function findOrCreateUsuario(
     if (u) return u;
   }
 
-  const nuevo = {
+  const newUser = {
     id: newId(),
     nombre: user.name || user.login,
     email: user.email || `${user.login}@users.noreply.github.com`,
     passwordHash: "github", // login por GitHub, sin contraseña
   };
-  await db.insert(usuarios).values(nuevo);
-  return { id: nuevo.id, nombre: nuevo.nombre, email: nuevo.email };
+  await db.insert(usuarios).values(newUser);
+  return { id: newUser.id, nombre: newUser.nombre, email: newUser.email };
 }
 
 export interface TokenResponse {
@@ -136,7 +136,7 @@ export async function fetchGithubUser(token: string): Promise<GithubUser> {
 }
 
 // Guarda (upsert) la cuenta GitHub del socio con tokens cifrados.
-export async function saveCuenta(
+export async function saveGithubAccount(
   env: CloudflareEnv,
   usuarioId: string,
   tok: TokenResponse,
@@ -178,29 +178,29 @@ export async function getUserToken(
   usuarioId: string,
 ): Promise<string | null> {
   const db = dbFromEnv(env);
-  const cuenta = await db
+  const account = await db
     .select()
     .from(githubCuentas)
     .where(eq(githubCuentas.usuarioId, usuarioId))
     .get();
-  if (!cuenta) return null;
+  if (!account) return null;
 
   const expired =
-    cuenta.tokenExp != null && new Date(cuenta.tokenExp).getTime() < Date.now();
+    account.tokenExp != null && new Date(account.tokenExp).getTime() < Date.now();
   if (!expired) {
-    return decryptSecret(cuenta.accessTokenEnc, env.SESSION_SECRET);
+    return decryptSecret(account.accessTokenEnc, env.SESSION_SECRET);
   }
 
   // Vencido: intentar refrescar.
-  if (!cuenta.refreshTokenEnc) return null;
-  const refresh = await decryptSecret(cuenta.refreshTokenEnc, env.SESSION_SECRET);
+  if (!account.refreshTokenEnc) return null;
+  const refresh = await decryptSecret(account.refreshTokenEnc, env.SESSION_SECRET);
   if (!refresh) return null;
   const tok = await refreshToken(env, refresh);
   if (!tok.access_token) return null;
-  await saveCuenta(env, usuarioId, tok, {
-    login: cuenta.githubLogin,
-    id: cuenta.githubUserId,
-    avatar_url: cuenta.avatarUrl ?? "",
+  await saveGithubAccount(env, usuarioId, tok, {
+    login: account.githubLogin,
+    id: account.githubUserId,
+    avatar_url: account.avatarUrl ?? "",
   });
   return tok.access_token;
 }

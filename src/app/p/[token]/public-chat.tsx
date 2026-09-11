@@ -1,19 +1,19 @@
 "use client";
 
 import { ChatBox } from "@/components/chat-box";
-import type { ChatMessage } from "@/components/use-chat";
+import type { ChatMessage } from "@/entities/chat/model/types";
 
 export function PublicChat({
   token,
-  historial,
+  history,
 }: {
   token: string;
-  historial: ChatMessage[];
+  history: ChatMessage[];
 }) {
   return (
     <ChatBox
       query={`token=${encodeURIComponent(token)}`}
-      historial={historial}
+      history={history}
       mine="cliente"
       title="Chatea con tu equipo"
       className="h-[60vh]"

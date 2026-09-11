@@ -4,9 +4,9 @@ import { verifyState } from "@/lib/oauth-state";
 import {
   exchangeCode,
   fetchGithubUser,
-  findOrCreateUsuario,
+  findOrCreateUser,
   isAllowed,
-  saveCuenta,
+  saveGithubAccount,
 } from "@/lib/github-oauth";
 import { signSession, sessionCookieString } from "@/lib/session";
 
@@ -38,11 +38,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=denied", req.url));
   }
 
-  const usuario = await findOrCreateUsuario(env, ghUser);
-  await saveCuenta(env, usuario.id, tok, ghUser);
+  const user = await findOrCreateUser(env, ghUser);
+  await saveGithubAccount(env, user.id, tok, ghUser);
 
   const sessionTok = await signSession(
-    { uid: usuario.id, nombre: usuario.nombre, email: usuario.email },
+    { uid: user.id, nombre: user.nombre, email: user.email },
     env.SESSION_SECRET,
   );
 

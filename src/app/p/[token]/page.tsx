@@ -1,8 +1,6 @@
 import { headers } from "next/headers";
-import { asc, eq } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { getDb } from "@/db";
-import { eventosProgreso, mensajesChat, proyectos } from "@/db/schema";
+import { getPublicProjectView } from "@/server/services/public-project.service";
 import { PublicChat } from "./public-chat";
 
 export const dynamic = "force-dynamic";
@@ -45,29 +43,9 @@ export default async function PublicProject({
     /* limiter not bound in some local setups; fail open */
   }
 
-  const db = getDb();
-  const proj = await db
-    .select()
-    .from(proyectos)
-    .where(eq(proyectos.tokenPublico, token))
-    .get();
-
-  if (!proj || !proj.activo) return <Unavailable />;
-
-  const [eventos, mensajes] = await Promise.all([
-    db
-      .select()
-      .from(eventosProgreso)
-      .where(eq(eventosProgreso.proyectoId, proj.id))
-      .orderBy(asc(eventosProgreso.creadoEn))
-      .all(),
-    db
-      .select()
-      .from(mensajesChat)
-      .where(eq(mensajesChat.proyectoId, proj.id))
-      .orderBy(asc(mensajesChat.creadoEn))
-      .all(),
-  ]);
+  const view = await getPublicProjectView(token);
+  if (!view) return <Unavailable />;
+  const { project, events, messages } = view;
 
   return (
     <main className="min-h-screen">
@@ -80,16 +58,16 @@ export default async function PublicProject({
           </span>
         </div>
         <h1 className="text-2xl font-black text-white sm:text-3xl">
-          {proj.nombre}
+          {project.name}
         </h1>
 
         {/* Etapa actual — destacada */}
-        {proj.etapaActual && (
+        {project.stage && (
           <div className="mt-5 overflow-hidden rounded-2xl bg-brand-gradient p-[1px] shadow-neon">
             <div className="rounded-2xl bg-ink-900 p-5">
               <p className="text-sm text-brand-300">Etapa actual</p>
               <p className="mt-0.5 text-2xl font-black text-white">
-                {proj.etapaActual}
+                {project.stage}
               </p>
             </div>
           </div>
@@ -100,13 +78,13 @@ export default async function PublicProject({
           <div className="mb-2 flex items-end justify-between">
             <span className="text-sm text-slate-400">Progreso general</span>
             <span className="text-2xl font-black text-white">
-              {proj.progresoPct}%
+              {project.progressPct}%
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-white/5">
             <div
               className="h-full rounded-full bg-brand-gradient transition-all"
-              style={{ width: `${proj.progresoPct}%` }}
+              style={{ width: `${project.progressPct}%` }}
             />
           </div>
         </div>
@@ -116,24 +94,24 @@ export default async function PublicProject({
           <h2 className="text-sm font-semibold text-slate-200">
             Avances del proyecto
           </h2>
-          {eventos.length === 0 ? (
+          {events.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500">
               Pronto verás aquí los avances de tu proyecto.
             </p>
           ) : (
             <ol className="mt-4 space-y-4">
-              {eventos.map((ev, i) => (
+              {events.map((ev, i) => (
                 <li key={ev.id} className="relative flex gap-3 pl-1">
                   <div className="flex flex-col items-center">
                     <div className="h-3 w-3 rounded-full bg-brand-500 shadow-neon" />
-                    {i < eventos.length - 1 && (
+                    {i < events.length - 1 && (
                       <div className="mt-1 w-px flex-1 bg-white/10" />
                     )}
                   </div>
                   <div className="pb-1">
-                    <p className="text-sm text-slate-200">{ev.descripcion}</p>
+                    <p className="text-sm text-slate-200">{ev.description}</p>
                     <time className="text-xs text-slate-500">
-                      {new Date(ev.creadoEn).toLocaleDateString("es-MX", {
+                      {new Date(ev.createdAt).toLocaleDateString("es-MX", {
                         day: "2-digit",
                         month: "long",
                         year: "numeric",
@@ -148,16 +126,7 @@ export default async function PublicProject({
 
         {/* Chat con el equipo */}
         <div className="mt-4">
-          <PublicChat
-            token={token}
-            historial={mensajes.map((m) => ({
-              id: m.id,
-              autorTipo: m.autorTipo as "cliente" | "socio",
-              autorNombre: m.autorNombre,
-              texto: m.texto,
-              creadoEn: m.creadoEn,
-            }))}
-          />
+          <PublicChat token={token} history={messages} />
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-600">
