@@ -1,19 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { Modal } from "@/components/modal";
+import { formatFechaHora } from "@/lib/format";
 import { cargarDetalleIssue } from "../sprint-actions";
-import type { GithubIssueComment, GithubIssueDetail } from "@/lib/github-user";
-
-function fecha(iso: string): string {
-  return new Date(iso).toLocaleDateString("es", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import type { GithubIssueComment, GithubIssueDetail } from "@/lib/github-oauth";
 
 function Avatar({ actor }: { actor: { login: string; avatar_url: string } }) {
   return (
@@ -81,7 +72,7 @@ export function IssueDetailContent({
                 {detalle.user.login}
               </span>
             )}
-            <span>· {fecha(detalle.created_at)}</span>
+            <span>· {formatFechaHora(detalle.created_at)}</span>
           </div>
 
           {detalle.labels.length > 0 && (
@@ -144,7 +135,7 @@ export function IssueDetailContent({
                       <span className="font-medium text-slate-300">
                         {c.user?.login ?? "desconocido"}
                       </span>
-                      <span>· {fecha(c.created_at)}</span>
+                      <span>· {formatFechaHora(c.created_at)}</span>
                     </div>
                     <p className="whitespace-pre-wrap text-sm text-slate-300">
                       {c.body?.trim() || "—"}
@@ -184,30 +175,21 @@ export function IssueDetailModal({
   fallbackUrl: string | null;
   onClose: () => void;
 }) {
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-white/10 bg-ink-900 p-5 sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h3 className="text-lg font-bold text-white">{title ?? `Issue #${issueNumber}`}</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-white">
-            ✕
-          </button>
-        </div>
-        <div className="mt-2">
-          <IssueDetailContent
-            proyectoId={proyectoId}
-            issueNumber={issueNumber}
-            fallbackUrl={fallbackUrl}
-          />
-        </div>
+  return (
+    <Modal onClose={onClose} maxWidthClassName="max-w-2xl" zIndexClassName="z-[60]">
+      <div className="flex items-start justify-between gap-4">
+        <h3 className="text-lg font-bold text-white">{title ?? `Issue #${issueNumber}`}</h3>
+        <button onClick={onClose} className="text-slate-500 hover:text-white">
+          ✕
+        </button>
       </div>
-    </div>,
-    document.body,
+      <div className="mt-2">
+        <IssueDetailContent
+          proyectoId={proyectoId}
+          issueNumber={issueNumber}
+          fallbackUrl={fallbackUrl}
+        />
+      </div>
+    </Modal>
   );
 }

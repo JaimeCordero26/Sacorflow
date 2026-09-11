@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatHora } from "@/lib/format";
 import { useChat, type ChatMessage } from "./use-chat";
 
 // Reusable chat UI. `mine` decides which side a message renders on.
@@ -81,10 +82,7 @@ export function ChatBox({
                     isMine ? "text-ink-900/70" : "text-slate-500"
                   }`}
                 >
-                  {new Date(m.creadoEn).toLocaleTimeString("es-MX", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatHora(m.creadoEn)}
                 </time>
               </div>
             </div>

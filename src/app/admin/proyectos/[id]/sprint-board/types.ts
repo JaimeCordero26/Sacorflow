@@ -1,5 +1,7 @@
-export type ColumnaTarea = "por_hacer" | "en_progreso" | "revision" | "hecho";
-export type EstadoSprint = "planificado" | "activo" | "cerrado";
+import type { ColumnaTarea, EstadoSprint, Sprint, Tarea } from "@/db/schema";
+import type { GithubIssueLite } from "@/lib/github-oauth";
+
+export type { ColumnaTarea, EstadoSprint, GithubIssueLite };
 export type OrigenTarea = "manual" | "github_import" | "ia_propuesta";
 
 export interface TareaCard {
@@ -23,11 +25,32 @@ export interface SprintInfo {
   orden: number;
 }
 
-export interface GithubIssueLite {
-  number: number;
-  title: string;
-  html_url: string;
-  state: "open" | "closed";
+// Adaptan una fila de Drizzle (columnas sueltas, sin tipar los enums) a la
+// forma que espera el tablero. Viven aquí, junto a los tipos, para que la
+// query en `src/db/queries/proyectos.ts` pueda devolver filas crudas.
+export function toSprintInfo(s: Sprint): SprintInfo {
+  return {
+    id: s.id,
+    nombre: s.nombre,
+    estado: s.estado as EstadoSprint,
+    fechaInicio: s.fechaInicio,
+    fechaFin: s.fechaFin,
+    orden: s.orden,
+  };
+}
+
+export function toTareaCard(t: Tarea): TareaCard {
+  return {
+    id: t.id,
+    titulo: t.titulo,
+    descripcion: t.descripcion,
+    columna: t.columnaKanban as ColumnaTarea,
+    orden: t.orden,
+    sprintId: t.sprintId,
+    origen: t.origen as OrigenTarea,
+    githubIssueNumber: t.githubIssueNumber,
+    githubIssueUrl: t.githubIssueUrl,
+  };
 }
 
 export const COLUMNAS_TAREA: { key: ColumnaTarea; label: string; dot: string }[] = [

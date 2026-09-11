@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth";
 import { getDb } from "@/db";
 import { githubCuentas } from "@/db/schema";
+import { formatFecha } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function PerfilPage() {
             <div className="flex-1">
               <div className="font-semibold text-white">@{cuenta.githubLogin}</div>
               <div className="text-xs text-slate-500">
-                Vinculada {new Date(cuenta.creadoEn).toLocaleDateString("es-MX")}
+                Vinculada {formatFecha(cuenta.creadoEn)}
               </div>
             </div>
             <span className="badge border border-brand-500/30 bg-brand-500/10 text-brand-300">
