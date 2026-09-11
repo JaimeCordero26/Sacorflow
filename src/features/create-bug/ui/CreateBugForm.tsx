@@ -2,14 +2,15 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { crearBug } from "../actions/bugs";
-import { PRIORIDAD_OPTIONS, PRIO_META } from "./types";
+import { createBugAction } from "@/app/admin/actions/bugs";
+import { PRIORITY_META, PRIORITY_OPTIONS } from "@/entities/bug/model/types";
+import type { ProjectOption } from "@/server/models/bug.model";
 
-export function BugForm({
-  proyectos,
+export function CreateBugForm({
+  projects,
   onClose,
 }: {
-  proyectos: { id: string; nombre: string }[];
+  projects: ProjectOption[];
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -19,7 +20,7 @@ export function BugForm({
     <form
       action={(fd) =>
         start(async () => {
-          await crearBug(fd);
+          await createBugAction(fd);
           onClose();
           router.refresh();
         })
@@ -28,12 +29,12 @@ export function BugForm({
     >
       <div>
         <label className="label">Título</label>
-        <input name="titulo" required autoFocus placeholder="Qué falla" className="input" />
+        <input name="title" required autoFocus placeholder="Qué falla" className="input" />
       </div>
       <div>
         <label className="label">Descripción (opcional)</label>
         <textarea
-          name="descripcion"
+          name="description"
           rows={2}
           placeholder="Pasos, contexto, cómo reproducir…"
           className="input"
@@ -42,21 +43,21 @@ export function BugForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="label">Prioridad</label>
-          <select name="prioridad" defaultValue="media" className="input">
-            {PRIORIDAD_OPTIONS.map((p) => (
+          <select name="priority" defaultValue="media" className="input">
+            {PRIORITY_OPTIONS.map((p) => (
               <option key={p} value={p}>
-                {PRIO_META[p].label}
+                {PRIORITY_META[p].label}
               </option>
             ))}
           </select>
         </div>
         <div>
           <label className="label">Proyecto (opcional)</label>
-          <select name="proyectoId" defaultValue="" className="input">
+          <select name="projectId" defaultValue="" className="input">
             <option value="">— Ninguno —</option>
-            {proyectos.map((p) => (
+            {projects.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.nombre}
+                {p.name}
               </option>
             ))}
           </select>

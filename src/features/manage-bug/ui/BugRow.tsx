@@ -1,82 +1,87 @@
 import Link from "next/link";
-import { formatFecha } from "@/lib/format";
-import { ESTADO_META, ESTADO_OPTIONS, PRIORIDAD_OPTIONS, PRIO_META } from "./types";
-import type { Bug, Estado, Prioridad } from "./types";
+import { formatDate } from "@/shared/lib/date";
+import {
+  PRIORITY_META,
+  PRIORITY_OPTIONS,
+  STATUS_META,
+  STATUS_OPTIONS,
+} from "@/entities/bug/model/types";
+import type { Bug, Priority, Status } from "@/entities/bug/model/types";
 
 export function BugRow({
-  bug: b,
+  bug,
   pending,
   onUpdate,
   onRemove,
 }: {
   bug: Bug;
   pending: boolean;
-  onUpdate: (id: string, data: { estado?: Estado; prioridad?: Prioridad }) => void;
+  onUpdate: (id: string, data: { status?: Status; priority?: Priority }) => void;
   onRemove: (id: string) => void;
 }) {
   return (
     <div
       className={`card flex flex-col gap-3 p-4 sm:flex-row sm:items-start ${
-        b.estado === "resuelto" ? "opacity-60" : ""
+        bug.status === "resuelto" ? "opacity-60" : ""
       }`}
     >
-      <span className={`badge h-fit shrink-0 border ${PRIO_META[b.prioridad].cls}`}>
-        {PRIO_META[b.prioridad].label}
+      <span className={`badge h-fit shrink-0 border ${PRIORITY_META[bug.priority].cls}`}>
+        {PRIORITY_META[bug.priority].label}
       </span>
       <div className="min-w-0 flex-1">
         <p
           className={`text-sm font-semibold text-white ${
-            b.estado === "resuelto" ? "line-through" : ""
+            bug.status === "resuelto" ? "line-through" : ""
           }`}
         >
-          {b.titulo}
+          {bug.title}
         </p>
-        {b.descripcion && (
-          <p className="mt-0.5 text-xs text-slate-400">{b.descripcion}</p>
+        {bug.description && (
+          <p className="mt-0.5 text-xs text-slate-400">{bug.description}</p>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          {b.proyectoId ? (
+          {bug.projectId ? (
             <Link
-              href={`/admin/proyectos/${b.proyectoId}`}
+              href={`/admin/proyectos/${bug.projectId}`}
               className="rounded-full bg-white/5 px-2 py-0.5 text-brand-300 hover:underline"
             >
-              {b.proyectoNombre ?? "Proyecto"}
+              {bug.projectName ?? "Proyecto"}
             </Link>
           ) : (
             <span className="rounded-full bg-white/5 px-2 py-0.5">Sin proyecto</span>
           )}
-          <span>{formatFecha(b.creadoEn)}</span>
+          <span>{formatDate(bug.createdAt)}</span>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <select
-          value={b.prioridad}
-          onChange={(e) => onUpdate(b.id, { prioridad: e.target.value as Prioridad })}
+          value={bug.priority}
+          onChange={(e) => onUpdate(bug.id, { priority: e.target.value as Priority })}
           disabled={pending}
           className="input !w-auto !py-1 text-xs"
           aria-label="Prioridad"
         >
-          {PRIORIDAD_OPTIONS.map((p) => (
+          {PRIORITY_OPTIONS.map((p) => (
             <option key={p} value={p}>
-              {PRIO_META[p].label}
+              {PRIORITY_META[p].label}
             </option>
           ))}
         </select>
         <select
-          value={b.estado}
-          onChange={(e) => onUpdate(b.id, { estado: e.target.value as Estado })}
+          value={bug.status}
+          onChange={(e) => onUpdate(bug.id, { status: e.target.value as Status })}
           disabled={pending}
           className="input !w-auto !py-1 text-xs"
           aria-label="Estado"
         >
-          {ESTADO_OPTIONS.map((e) => (
-            <option key={e} value={e}>
-              {ESTADO_META[e].label}
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_META[s].label}
             </option>
           ))}
         </select>
         <button
-          onClick={() => onRemove(b.id)}
+          onClick={() => onRemove(bug.id)}
           disabled={pending}
           className="text-slate-600 hover:text-pink-400"
           aria-label="Eliminar"

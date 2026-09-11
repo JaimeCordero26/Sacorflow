@@ -2,51 +2,52 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { actualizarBug, eliminarBug } from "../actions/bugs";
-import { BugForm } from "./bug-form";
-import { BugRow } from "./bug-row";
-import { ESTADO_META, PRIO_META } from "./types";
-import type { Bug, Estado, Prioridad } from "./types";
+import { deleteBugAction, updateBugAction } from "@/app/admin/actions/bugs";
+import { CreateBugForm } from "@/features/create-bug/ui/CreateBugForm";
+import { BugRow } from "@/features/manage-bug/ui/BugRow";
+import { STATUS_META, PRIORITY_META } from "@/entities/bug/model/types";
+import type { Bug, Status, Priority } from "@/entities/bug/model/types";
+import type { ProjectOption } from "@/server/models/bug.model";
 
-export function BugsView({
+export function BugsListWidget({
   bugs,
-  proyectos,
+  projects,
 }: {
   bugs: Bug[];
-  proyectos: { id: string; nombre: string }[];
+  projects: ProjectOption[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
-  const [fEstado, setFEstado] = useState<"todos" | Estado>("todos");
-  const [fPrio, setFPrio] = useState<"todas" | Prioridad>("todas");
+  const [statusFilter, setStatusFilter] = useState<"todos" | Status>("todos");
+  const [priorityFilter, setPriorityFilter] = useState<"todas" | Priority>("todas");
 
-  const abiertos = bugs.filter((b) => b.estado !== "resuelto").length;
+  const openCount = bugs.filter((b) => b.status !== "resuelto").length;
 
-  const visibles = useMemo(() => {
+  const visible = useMemo(() => {
     return bugs
-      .filter((b) => (fEstado === "todos" ? true : b.estado === fEstado))
-      .filter((b) => (fPrio === "todas" ? true : b.prioridad === fPrio))
+      .filter((b) => (statusFilter === "todos" ? true : b.status === statusFilter))
+      .filter((b) => (priorityFilter === "todas" ? true : b.priority === priorityFilter))
       .sort((a, b) => {
         // Resueltos al fondo; luego por prioridad; luego más recientes.
-        const er = ESTADO_META[a.estado].rank - ESTADO_META[b.estado].rank;
-        if (er !== 0) return er;
-        const pr = PRIO_META[a.prioridad].rank - PRIO_META[b.prioridad].rank;
-        if (pr !== 0) return pr;
-        return b.creadoEn.localeCompare(a.creadoEn);
+        const statusRank = STATUS_META[a.status].rank - STATUS_META[b.status].rank;
+        if (statusRank !== 0) return statusRank;
+        const priorityRank = PRIORITY_META[a.priority].rank - PRIORITY_META[b.priority].rank;
+        if (priorityRank !== 0) return priorityRank;
+        return b.createdAt.localeCompare(a.createdAt);
       });
-  }, [bugs, fEstado, fPrio]);
+  }, [bugs, statusFilter, priorityFilter]);
 
-  function update(id: string, data: { estado?: Estado; prioridad?: Prioridad }) {
+  function update(id: string, data: { status?: Status; priority?: Priority }) {
     start(async () => {
-      await actualizarBug(id, data);
+      await updateBugAction(id, data);
       router.refresh();
     });
   }
 
   function remove(id: string) {
     start(async () => {
-      await eliminarBug(id);
+      await deleteBugAction(id);
       router.refresh();
     });
   }
@@ -57,7 +58,7 @@ export function BugsView({
         <div>
           <h1 className="text-2xl font-black text-white">Errores</h1>
           <p className="mt-1 text-sm text-slate-400">
-            {abiertos} sin resolver · prioriza y ataca por orden.
+            {openCount} sin resolver · prioriza y ataca por orden.
           </p>
         </div>
         <button onClick={() => setOpen((v) => !v)} className="btn-primary">
@@ -66,8 +67,8 @@ export function BugsView({
       </div>
 
       {open && (
-        <BugForm
-          proyectos={proyectos}
+        <CreateBugForm
+          projects={projects}
           onClose={() => {
             setOpen(false);
           }}
@@ -77,8 +78,8 @@ export function BugsView({
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Filter
           label="Estado"
-          value={fEstado}
-          onChange={(v) => setFEstado(v as typeof fEstado)}
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
           options={[
             ["todos", "Todos"],
             ["abierto", "Abierto"],
@@ -88,8 +89,8 @@ export function BugsView({
         />
         <Filter
           label="Prioridad"
-          value={fPrio}
-          onChange={(v) => setFPrio(v as typeof fPrio)}
+          value={priorityFilter}
+          onChange={(v) => setPriorityFilter(v as typeof priorityFilter)}
           options={[
             ["todas", "Todas"],
             ["alta", "Alta"],
@@ -100,12 +101,12 @@ export function BugsView({
       </div>
 
       <div className="space-y-2">
-        {visibles.length === 0 && (
+        {visible.length === 0 && (
           <p className="card p-8 text-center text-sm text-slate-500">
             Sin errores. Registra el primero con “+ Nuevo error”.
           </p>
         )}
-        {visibles.map((b) => (
+        {visible.map((b) => (
           <BugRow key={b.id} bug={b} pending={pending} onUpdate={update} onRemove={remove} />
         ))}
       </div>
