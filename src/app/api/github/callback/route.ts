@@ -7,7 +7,7 @@ import {
   findOrCreateUsuario,
   isAllowed,
   saveCuenta,
-} from "@/lib/github-user";
+} from "@/lib/github-oauth";
 import { signSession, sessionCookieString } from "@/lib/session";
 
 export const dynamic = "force-dynamic";

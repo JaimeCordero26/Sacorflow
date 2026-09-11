@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { actualizarEtapa } from "../../actions";
+import { actualizarEtapa } from "../../actions/proyectos";
 
 export function StageEditor({
   proyectoId,

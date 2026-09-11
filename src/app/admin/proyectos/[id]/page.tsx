@@ -1,18 +1,5 @@
 import { notFound } from "next/navigation";
-import { and, asc, desc, eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import {
-  clientes,
-  etapas,
-  eventosProgreso,
-  githubCuentas,
-  issuesPropuestos,
-  mensajesChat,
-  proyectoClientes,
-  proyectos,
-  sprints,
-  tareas,
-} from "@/db/schema";
+import { getProyectoDetalle, marcarMensajesClienteLeidos } from "@/db/queries/proyectos";
 import { StageEditor } from "./stage-editor";
 import { EtapasManager } from "./etapas-manager";
 import { ActiveToggle } from "./active-toggle";
@@ -22,6 +9,7 @@ import { PropuestasPanel } from "./propuestas-panel";
 import { ClientLinker } from "./client-linker";
 import { AdminChat } from "./admin-chat";
 import { SprintBoard } from "./sprint-board/sprint-board";
+import { toSprintInfo, toTareaCard } from "./sprint-board/types";
 
 export const dynamic = "force-dynamic";
 
@@ -31,68 +19,25 @@ export default async function ProyectoDetalle({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const db = getDb();
 
-  const proj = await db.select().from(proyectos).where(eq(proyectos.id, id)).get();
-  if (!proj) notFound();
-
-  const [
-    listaEtapas,
+  const detalle = await getProyectoDetalle(id);
+  if (!detalle) notFound();
+  const {
+    proyecto: proj,
+    etapas: listaEtapas,
     eventos,
     mensajes,
     todosClientes,
-    vinculados,
+    clientesVinculados,
     propuestas,
-    creadorGh,
-    listaSprints,
-    listaTareas,
-  ] = await Promise.all([
-    db.select().from(etapas).orderBy(asc(etapas.orden)).all(),
-    db
-      .select()
-      .from(eventosProgreso)
-      .where(eq(eventosProgreso.proyectoId, id))
-      .orderBy(desc(eventosProgreso.creadoEn))
-      .all(),
-    db
-      .select()
-      .from(mensajesChat)
-      .where(eq(mensajesChat.proyectoId, id))
-      .orderBy(asc(mensajesChat.creadoEn))
-      .all(),
-    db.select().from(clientes).orderBy(asc(clientes.nombre)).all(),
-    db
-      .select({ id: clientes.id, nombre: clientes.nombre })
-      .from(proyectoClientes)
-      .innerJoin(clientes, eq(clientes.id, proyectoClientes.clienteId))
-      .where(eq(proyectoClientes.proyectoId, id))
-      .all(),
-    db
-      .select()
-      .from(issuesPropuestos)
-      .where(eq(issuesPropuestos.proyectoId, id))
-      .orderBy(asc(issuesPropuestos.creadoEn))
-      .all(),
-    proj.creadoPor
-      ? db
-          .select({ login: githubCuentas.githubLogin })
-          .from(githubCuentas)
-          .where(eq(githubCuentas.usuarioId, proj.creadoPor))
-          .get()
-      : Promise.resolve(undefined),
-    db.select().from(sprints).where(eq(sprints.proyectoId, id)).orderBy(asc(sprints.orden)).all(),
-    db.select().from(tareas).where(eq(tareas.proyectoId, id)).all(),
-  ]);
+    creadorGithubLogin,
+    sprints: listaSprints,
+    tareas: listaTareas,
+  } = detalle;
 
-  await db
-    .update(mensajesChat)
-    .set({ leido: true })
-    .where(
-      and(
-        eq(mensajesChat.proyectoId, id),
-        eq(mensajesChat.autorTipo, "cliente"),
-      ),
-    );
+  // Side-effect explícito, separado del fetch de arriba: marca como leídos
+  // los mensajes que el cliente mandó (para el inbox de socios en /admin).
+  await marcarMensajesClienteLeidos(id);
 
   const stageNames = listaEtapas.map((e) => e.nombre);
 
@@ -123,25 +68,8 @@ export default async function ProyectoDetalle({
       <SprintBoard
         proyectoId={proj.id}
         tieneRepo={!!proj.repoGithub}
-        sprints={listaSprints.map((s) => ({
-          id: s.id,
-          nombre: s.nombre,
-          estado: s.estado as "planificado" | "activo" | "cerrado",
-          fechaInicio: s.fechaInicio,
-          fechaFin: s.fechaFin,
-          orden: s.orden,
-        }))}
-        tareas={listaTareas.map((t) => ({
-          id: t.id,
-          titulo: t.titulo,
-          descripcion: t.descripcion,
-          columna: t.columnaKanban as "por_hacer" | "en_progreso" | "revision" | "hecho",
-          orden: t.orden,
-          sprintId: t.sprintId,
-          origen: t.origen as "manual" | "github_import" | "ia_propuesta",
-          githubIssueNumber: t.githubIssueNumber,
-          githubIssueUrl: t.githubIssueUrl,
-        }))}
+        sprints={listaSprints.map(toSprintInfo)}
+        tareas={listaTareas.map(toTareaCard)}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -178,7 +106,7 @@ export default async function ProyectoDetalle({
             installationId={proj.installationId}
             milestoneId={proj.milestoneId}
             milestoneTitulo={proj.milestoneTitulo}
-            creadorLogin={creadorGh?.login ?? null}
+            creadorLogin={creadorGithubLogin}
           />
 
           <PropuestasPanel
@@ -199,7 +127,7 @@ export default async function ProyectoDetalle({
           <ClientLinker
             proyectoId={proj.id}
             todos={todosClientes.map((c) => ({ id: c.id, nombre: c.nombre }))}
-            vinculados={vinculados}
+            vinculados={clientesVinculados}
           />
 
           <section className="card p-5">

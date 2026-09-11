@@ -16,7 +16,7 @@ import {
   type GithubIssueComment,
   type GithubIssueDetail,
   type GithubIssueLite,
-} from "@/lib/github-user";
+} from "@/lib/github-oauth";
 
 const COLUMNAS: ColumnaTarea[] = ["por_hacer", "en_progreso", "revision", "hecho"];
 

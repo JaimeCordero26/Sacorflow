@@ -2,11 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  crearRepoParaIdea,
-  vincularRepoExistente,
-  refrescarProgreso,
-} from "../../actions";
+import { crearRepoParaIdea, vincularRepoExistente } from "../../actions/github";
+import { refrescarProgreso } from "../../actions/proyectos";
 
 export function GithubPanel({
   proyectoId,

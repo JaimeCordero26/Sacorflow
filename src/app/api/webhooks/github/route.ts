@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { eventosProgreso, proyectos, tareas } from "@/db/schema";
 import { newId } from "@/lib/ids";
-import { computeProgress, verifyWebhookSignature } from "@/lib/github";
+import { computeProgress, verifyWebhookSignature } from "@/lib/github-app";
 
 export const dynamic = "force-dynamic";
 

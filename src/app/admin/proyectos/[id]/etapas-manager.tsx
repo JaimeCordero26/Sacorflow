@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { crearEtapa, eliminarEtapa } from "../../actions";
+import { crearEtapa, eliminarEtapa } from "../../actions/etapas";
 
 export function EtapasManager({
   etapas,

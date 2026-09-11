@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { crearProyecto } from "../actions";
+import { crearProyecto } from "../actions/proyectos";
 
 export function NewIdeaForm() {
   const [open, setOpen] = useState(false);

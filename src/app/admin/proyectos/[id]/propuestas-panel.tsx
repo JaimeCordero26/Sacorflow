@@ -6,7 +6,7 @@ import {
   generarPropuestas,
   marcarPropuesta,
   crearIssuesAceptados,
-} from "../../actions";
+} from "../../actions/propuestas";
 
 type Estado = "propuesto" | "aceptado" | "descartado";
 

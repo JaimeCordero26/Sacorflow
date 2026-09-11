@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { crearCliente } from "../actions";
+import { crearCliente } from "../actions/clientes";
 
 export function NewClientForm() {
   const router = useRouter();

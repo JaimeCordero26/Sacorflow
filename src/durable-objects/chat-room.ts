@@ -1,9 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
-import { dbFromEnv } from "../db";
-import { mensajesChat, proyectos } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { newId } from "../lib/ids";
-import { notifyPartners } from "../lib/notifications";
+import { dbFromEnv } from "@/db";
+import { mensajesChat, proyectos } from "@/db/schema";
+import { newId } from "@/lib/ids";
+import { notifyPartners } from "@/lib/notifications";
 
 // One ChatRoom per project (named by project id). Holds live WebSocket
 // connections for the client (public token) and the partners (admin). Messages

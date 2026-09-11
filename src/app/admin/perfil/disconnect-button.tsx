@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { desconectarGithub } from "../actions";
+import { desconectarGithub } from "../actions/github";
 
 export function DisconnectButton() {
   const router = useRouter();

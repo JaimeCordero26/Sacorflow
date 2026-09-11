@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { signState } from "@/lib/oauth-state";
-import { authorizeUrl } from "@/lib/github-user";
+import { authorizeUrl } from "@/lib/github-oauth";
 
 export const dynamic = "force-dynamic";
 

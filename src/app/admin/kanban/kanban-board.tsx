@@ -10,7 +10,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { moverTarjeta, eliminarProyecto } from "../actions";
+import { moverTarjeta, eliminarProyecto } from "../actions/proyectos";
 import { CardFace } from "./card-face";
 import { CardModal } from "./card-modal";
 import { Column } from "./column";

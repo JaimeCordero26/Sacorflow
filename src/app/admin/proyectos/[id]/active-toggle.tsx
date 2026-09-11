@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cambiarActivo } from "../../actions";
+import { cambiarActivo } from "../../actions/proyectos";
 
 export function ActiveToggle({
   proyectoId,

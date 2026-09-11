@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { actualizarCliente } from "../../actions";
+import { actualizarCliente } from "../../actions/clientes";
 
 export function EditClientForm({
   id,

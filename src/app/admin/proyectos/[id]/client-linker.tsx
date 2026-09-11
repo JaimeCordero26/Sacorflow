@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   vincularClienteProyecto,
   desvincularClienteProyecto,
-} from "../../actions";
+} from "../../actions/clientes";
 
 export function ClientLinker({
   proyectoId,
