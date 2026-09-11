@@ -2,16 +2,16 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { desconectarGithub } from "../actions/github";
+import { disconnectGithubAccountAction } from "@/app/admin/actions/profile";
 
-export function DisconnectButton() {
+export function DisconnectGithubAccountButton() {
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <button
       onClick={() =>
         start(async () => {
-          await desconectarGithub();
+          await disconnectGithubAccountAction();
           router.refresh();
         })
       }

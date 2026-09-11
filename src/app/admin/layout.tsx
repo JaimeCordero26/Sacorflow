@@ -40,7 +40,7 @@ export default async function AdminLayout({
             <NavLink href="/admin/kanban">Tablero</NavLink>
             <NavLink href="/admin/bugs">Errores</NavLink>
             <NavLink href="/admin/clientes">Clientes</NavLink>
-            <NavLink href="/admin/perfil">Perfil</NavLink>
+            <NavLink href="/admin/profile">Perfil</NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-3">
             {gh ? (
@@ -50,14 +50,14 @@ export default async function AdminLayout({
               </span>
             ) : (
               <Link
-                href="/admin/perfil"
+                href="/admin/profile"
                 className="hidden rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400 hover:text-white sm:inline-flex"
               >
                 Conectar GitHub
               </Link>
             )}
             <span className="hidden text-sm text-slate-400 sm:inline">
-              {session.nombre}
+          
             </span>
             <LogoutButton />
           </div>
