@@ -1,69 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { clientes, proyectoClientes } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
-import { newId } from "@/lib/ids";
+import * as clientService from "@/server/services/client.service";
 
-export async function crearCliente(formData: FormData) {
+export async function createClientAction(formData: FormData) {
   await requireSession();
-  const nombre = String(formData.get("nombre") ?? "").trim();
-  if (!nombre) return;
-  const db = getDb();
-  await db.insert(clientes).values({
-    id: newId(),
-    nombre,
-    contacto: String(formData.get("contacto") ?? "").trim() || null,
-    notas: String(formData.get("notas") ?? "").trim() || null,
+  await clientService.createClient({
+    name: String(formData.get("name") ?? "").trim(),
+    contact: String(formData.get("contact") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
   });
   revalidatePath("/admin/clientes");
 }
 
-export async function actualizarCliente(id: string, formData: FormData) {
+export async function updateClientAction(id: string, formData: FormData) {
   await requireSession();
-  const db = getDb();
-  await db
-    .update(clientes)
-    .set({
-      nombre: String(formData.get("nombre") ?? "").trim(),
-      contacto: String(formData.get("contacto") ?? "").trim() || null,
-      notas: String(formData.get("notas") ?? "").trim() || null,
-    })
-    .where(eq(clientes.id, id));
+  await clientService.updateClient(id, {
+    name: String(formData.get("name") ?? "").trim(),
+    contact: String(formData.get("contact") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+  });
   revalidatePath(`/admin/clientes/${id}`);
   revalidatePath("/admin/clientes");
 }
 
-export async function vincularClienteProyecto(
-  clienteId: string,
-  proyectoId: string,
-) {
+export async function linkClientToProjectAction(clientId: string, projectId: string) {
   await requireSession();
-  const db = getDb();
-  await db
-    .insert(proyectoClientes)
-    .values({ clienteId, proyectoId })
-    .onConflictDoNothing();
-  revalidatePath(`/admin/clientes/${clienteId}`);
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await clientService.linkClientToProject(clientId, projectId);
+  revalidatePath(`/admin/clientes/${clientId}`);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function desvincularClienteProyecto(
-  clienteId: string,
-  proyectoId: string,
-) {
+export async function unlinkClientFromProjectAction(clientId: string, projectId: string) {
   await requireSession();
-  const db = getDb();
-  await db
-    .delete(proyectoClientes)
-    .where(
-      and(
-        eq(proyectoClientes.clienteId, clienteId),
-        eq(proyectoClientes.proyectoId, proyectoId),
-      ),
-    );
-  revalidatePath(`/admin/clientes/${clienteId}`);
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await clientService.unlinkClientFromProject(clientId, projectId);
+  revalidatePath(`/admin/clientes/${clientId}`);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }

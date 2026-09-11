@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { crearCliente } from "../actions/clientes";
+import { createClientAction } from "@/app/admin/actions/clientes";
 
-export function NewClientForm() {
+export function CreateClientForm() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -19,25 +19,25 @@ export function NewClientForm() {
   return (
     <form
       action={async (fd) => {
-        await crearCliente(fd);
+        await createClientAction(fd);
         setOpen(false);
         router.refresh();
       }}
       className="card grid grid-cols-1 gap-3 p-4 sm:grid-cols-2"
     >
       <input
-        name="nombre"
+        name="name"
         placeholder="Nombre de la empresa"
         required
         className="input"
       />
       <input
-        name="contacto"
+        name="contact"
         placeholder="Contacto (email / teléfono)"
         className="input"
       />
       <textarea
-        name="notas"
+        name="notes"
         placeholder="Notas"
         rows={2}
         className="input sm:col-span-2"
