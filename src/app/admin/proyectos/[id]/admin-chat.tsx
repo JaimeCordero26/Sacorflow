@@ -1,19 +1,19 @@
 "use client";
 
 import { ChatBox } from "@/components/chat-box";
-import type { ChatMessage } from "@/components/use-chat";
+import type { ChatMessage } from "@/entities/chat/model/types";
 
 export function AdminChat({
   proyectoId,
-  historial,
+  history,
 }: {
   proyectoId: string;
-  historial: ChatMessage[];
+  history: ChatMessage[];
 }) {
   return (
     <ChatBox
       query={`project=${encodeURIComponent(proyectoId)}`}
-      historial={historial}
+      history={history}
       mine="socio"
       title="Chat con el cliente"
       className="h-[70vh] lg:sticky lg:top-20"

@@ -1,266 +1,113 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { proyectos, sprints, tareas, type ColumnaTarea } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
-import { newId } from "@/lib/ids";
-import {
-  createIssue,
-  getIssueDetail,
-  getUserToken,
-  listIssueComments,
-  listIssues,
-  type GithubIssueComment,
-  type GithubIssueDetail,
-  type GithubIssueLite,
-} from "@/lib/github-oauth";
+import * as sprintService from "@/server/services/sprint.service";
+import type { TaskColumn } from "@/entities/task/model/types";
+import type { GithubIssueComment, GithubIssueDetail, GithubIssueLite } from "@/lib/github-oauth";
 
-const COLUMNAS: ColumnaTarea[] = ["por_hacer", "en_progreso", "revision", "hecho"];
+export type { GithubIssueComment, GithubIssueDetail, GithubIssueLite };
 
 // ---------- Sprints ----------
 
-export async function crearSprint(
-  proyectoId: string,
-  nombre: string,
-  fechaInicio?: string,
-  fechaFin?: string,
+export async function createSprintAction(
+  projectId: string,
+  name: string,
+  startDate?: string,
+  endDate?: string,
 ) {
   await requireSession();
-  const n = nombre.trim();
-  if (!n) return;
-  const db = getDb();
-  const existentes = await db
-    .select({ id: sprints.id })
-    .from(sprints)
-    .where(eq(sprints.proyectoId, proyectoId))
-    .all();
-  await db.insert(sprints).values({
-    id: newId(),
-    proyectoId,
-    nombre: n,
-    fechaInicio: fechaInicio || null,
-    fechaFin: fechaFin || null,
-    orden: existentes.length,
-  });
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.createSprint(projectId, name, startDate, endDate);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function iniciarSprint(sprintId: string, proyectoId: string) {
+export async function startSprintAction(sprintId: string, projectId: string) {
   await requireSession();
-  const db = getDb();
-  await db.update(sprints).set({ estado: "activo" }).where(eq(sprints.id, sprintId));
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.startSprint(sprintId);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function cerrarSprint(sprintId: string, proyectoId: string) {
+export async function closeSprintAction(sprintId: string, projectId: string) {
   await requireSession();
-  const db = getDb();
-  await db
-    .update(sprints)
-    .set({ estado: "cerrado", cerradoEn: new Date().toISOString() })
-    .where(eq(sprints.id, sprintId));
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.closeSprint(sprintId);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function eliminarSprint(sprintId: string, proyectoId: string) {
+export async function deleteSprintAction(sprintId: string, projectId: string) {
   await requireSession();
-  const db = getDb();
-  // Las tareas del sprint quedan en backlog (onDelete: "set null" en schema).
-  await db.delete(sprints).where(eq(sprints.id, sprintId));
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.deleteSprint(sprintId);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
 // ---------- Tareas ----------
 
-export async function crearTarea(
-  proyectoId: string,
+export async function createTaskAction(
+  projectId: string,
   sprintId: string | null,
-  titulo: string,
-  descripcion?: string,
+  title: string,
+  description?: string,
 ) {
   const session = await requireSession();
-  const t = titulo.trim();
-  if (!t) return;
-  const db = getDb();
-
-  // Si el proyecto tiene repo vinculado y el creador conectó GitHub, la tarea
-  // nace también como issue real (no solo como fila local) para que se vea y
-  // se pueda seguir igual que un issue importado.
-  let githubIssueNumber: number | null = null;
-  let githubIssueUrl: string | null = null;
-  let githubIssueState: "open" | null = null;
-
-  const proj = await db
-    .select({ repoGithub: proyectos.repoGithub, creadoPor: proyectos.creadoPor })
-    .from(proyectos)
-    .where(eq(proyectos.id, proyectoId))
-    .get();
-
-  if (proj?.repoGithub && proj.creadoPor) {
-    const { env } = getCloudflareContext();
-    const token = await getUserToken(env, proj.creadoPor);
-    if (token) {
-      try {
-        const issue = await createIssue(token, proj.repoGithub, {
-          title: t,
-          body: descripcion?.trim() || "",
-        });
-        githubIssueNumber = issue.number;
-        githubIssueUrl = issue.html_url;
-        githubIssueState = "open";
-      } catch (e) {
-        console.error("[crearTarea] no se pudo crear el issue en GitHub", e);
-      }
-    }
-  }
-
-  await db.insert(tareas).values({
-    id: newId(),
-    proyectoId,
-    sprintId,
-    titulo: t,
-    descripcion: descripcion?.trim() || null,
-    columnaKanban: "por_hacer",
-    origen: "manual",
-    githubIssueNumber,
-    githubIssueUrl,
-    githubIssueState,
-    creadoPor: session.uid,
-  });
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.createTask(session.uid, projectId, sprintId, title, description);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function moverTarea(
-  tareaId: string,
-  proyectoId: string,
-  columna: ColumnaTarea,
-  orden: number,
+export async function moveTaskAction(
+  taskId: string,
+  projectId: string,
+  column: TaskColumn,
+  order: number,
 ) {
   await requireSession();
-  if (!COLUMNAS.includes(columna)) return;
-  const db = getDb();
-  await db
-    .update(tareas)
-    .set({ columnaKanban: columna, orden, actualizadoEn: new Date().toISOString() })
-    .where(eq(tareas.id, tareaId));
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.moveTask(taskId, column, order);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function moverTareaASprint(
-  tareaId: string,
-  proyectoId: string,
+export async function moveTaskToSprintAction(
+  taskId: string,
+  projectId: string,
   sprintId: string | null,
 ) {
   await requireSession();
-  const db = getDb();
-  await db
-    .update(tareas)
-    .set({ sprintId, orden: 0, actualizadoEn: new Date().toISOString() })
-    .where(eq(tareas.id, tareaId));
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.moveTaskToSprint(taskId, sprintId);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function eliminarTarea(tareaId: string, proyectoId: string) {
+export async function deleteTaskAction(taskId: string, projectId: string) {
   await requireSession();
-  const db = getDb();
-  await db.delete(tareas).where(eq(tareas.id, tareaId));
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.deleteTask(taskId);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
-export async function importarIssueComoTarea(
-  proyectoId: string,
+export async function importIssueAsTaskAction(
+  projectId: string,
   sprintId: string | null,
-  columnaInicial: ColumnaTarea,
+  initialColumn: TaskColumn,
   issue: { number: number; title: string; url: string },
 ) {
   const session = await requireSession();
-  if (!COLUMNAS.includes(columnaInicial)) return;
-  const db = getDb();
-  await db.insert(tareas).values({
-    id: newId(),
-    proyectoId,
-    sprintId,
-    titulo: issue.title,
-    columnaKanban: columnaInicial,
-    origen: "github_import",
-    githubIssueNumber: issue.number,
-    githubIssueUrl: issue.url,
-    githubIssueState: "open",
-    creadoPor: session.uid,
-  });
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await sprintService.importIssueAsTask(session.uid, projectId, sprintId, initialColumn, issue);
+  revalidatePath(`/admin/proyectos/${projectId}`);
 }
 
 // ---------- Pool de issues de GitHub ----------
 
-export async function cargarIssuesDisponibles(
-  proyectoId: string,
+export async function listAvailableGithubIssuesAction(
+  projectId: string,
 ): Promise<{ ok: boolean; issues?: GithubIssueLite[]; error?: string }> {
   await requireSession();
-  const { env } = getCloudflareContext();
-  const db = getDb();
-
-  const proj = await db
-    .select({ repoGithub: proyectos.repoGithub, creadoPor: proyectos.creadoPor })
-    .from(proyectos)
-    .where(eq(proyectos.id, proyectoId))
-    .get();
-  if (!proj?.repoGithub) return { ok: false, error: "El proyecto no tiene repo vinculado." };
-
-  const token = proj.creadoPor ? await getUserToken(env, proj.creadoPor) : null;
-  if (!token) return { ok: false, error: "El creador del proyecto no tiene GitHub conectado." };
-
-  try {
-    const abiertos = await listIssues(token, proj.repoGithub, { state: "open" });
-    const yaImportadas = await db
-      .select({ n: tareas.githubIssueNumber })
-      .from(tareas)
-      .where(and(eq(tareas.proyectoId, proyectoId), eq(tareas.origen, "github_import")))
-      .all();
-    const numerosUsados = new Set(yaImportadas.map((t) => t.n));
-    return { ok: true, issues: abiertos.filter((i) => !numerosUsados.has(i.number)) };
-  } catch (e) {
-    console.error("[cargarIssuesDisponibles]", e);
-    return { ok: false, error: "No se pudieron cargar los issues de GitHub." };
-  }
+  return sprintService.listAvailableGithubIssues(projectId);
 }
 
-// Detalle de un issue puntual (body, labels, asignados, comentarios) para
-// mostrarlo dentro del tablero sin salir a GitHub.
-export async function cargarDetalleIssue(
-  proyectoId: string,
+export async function getTaskIssueDetailAction(
+  projectId: string,
   issueNumber: number,
 ): Promise<{
   ok: boolean;
-  detalle?: GithubIssueDetail;
-  comentarios?: GithubIssueComment[];
+  detail?: GithubIssueDetail;
+  comments?: GithubIssueComment[];
   error?: string;
 }> {
   await requireSession();
-  const { env } = getCloudflareContext();
-  const db = getDb();
-
-  const proj = await db
-    .select({ repoGithub: proyectos.repoGithub, creadoPor: proyectos.creadoPor })
-    .from(proyectos)
-    .where(eq(proyectos.id, proyectoId))
-    .get();
-  if (!proj?.repoGithub) return { ok: false, error: "El proyecto no tiene repo vinculado." };
-
-  const token = proj.creadoPor ? await getUserToken(env, proj.creadoPor) : null;
-  if (!token) return { ok: false, error: "El creador del proyecto no tiene GitHub conectado." };
-
-  try {
-    const [detalle, comentarios] = await Promise.all([
-      getIssueDetail(token, proj.repoGithub, issueNumber),
-      listIssueComments(token, proj.repoGithub, issueNumber),
-    ]);
-    return { ok: true, detalle, comentarios };
-  } catch (e) {
-    console.error("[cargarDetalleIssue]", e);
-    return { ok: false, error: "No se pudo cargar el detalle del issue." };
-  }
+  return sprintService.getTaskIssueDetail(projectId, issueNumber);
 }

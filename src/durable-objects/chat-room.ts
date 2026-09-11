@@ -4,6 +4,7 @@ import { dbFromEnv } from "@/db";
 import { mensajesChat, proyectos } from "@/db/schema";
 import { newId } from "@/lib/ids";
 import { notifyPartners } from "@/lib/notifications";
+import type { ChatAuthorType, ChatMessage } from "@/entities/chat/model/types";
 
 // One ChatRoom per project (named by project id). Holds live WebSocket
 // connections for the client (public token) and the partners (admin). Messages
@@ -13,19 +14,10 @@ import { notifyPartners } from "@/lib/notifications";
 // here, and stamps identity headers. The DO trusts those headers.
 
 interface SocketMeta {
-  role: "cliente" | "socio";
-  nombre: string;
-  autorId: string | null;
-  proyectoId: string;
-}
-
-interface WireMessage {
-  id: string;
-  proyectoId: string;
-  autorTipo: "cliente" | "socio";
-  autorNombre: string;
-  texto: string;
-  creadoEn: string;
+  role: ChatAuthorType;
+  name: string;
+  authorId: string | null;
+  projectId: string;
 }
 
 export class ChatRoom extends DurableObject<CloudflareEnv> {
@@ -36,9 +28,9 @@ export class ChatRoom extends DurableObject<CloudflareEnv> {
 
     const meta: SocketMeta = {
       role: (request.headers.get("X-Chat-Role") as SocketMeta["role"]) ?? "cliente",
-      nombre: request.headers.get("X-Chat-Author-Name") ?? "Cliente",
-      autorId: request.headers.get("X-Chat-Author-Id") || null,
-      proyectoId: request.headers.get("X-Chat-Project-Id") ?? "",
+      name: request.headers.get("X-Chat-Author-Name") ?? "Cliente",
+      authorId: request.headers.get("X-Chat-Author-Id") || null,
+      projectId: request.headers.get("X-Chat-Project-Id") ?? "",
     };
 
     const pair = new WebSocketPair();
@@ -56,7 +48,7 @@ export class ChatRoom extends DurableObject<CloudflareEnv> {
     const meta = ws.deserializeAttachment() as SocketMeta | null;
     if (!meta) return;
 
-    let parsed: { type?: string; texto?: string };
+    let parsed: { type?: string; text?: string };
     try {
       parsed = JSON.parse(typeof raw === "string" ? raw : "");
     } catch {
@@ -64,31 +56,30 @@ export class ChatRoom extends DurableObject<CloudflareEnv> {
     }
     if (parsed.type !== "message") return;
 
-    const texto = (parsed.texto ?? "").trim();
-    if (!texto || texto.length > 4000) return;
+    const text = (parsed.text ?? "").trim();
+    if (!text || text.length > 4000) return;
 
-    const msg: WireMessage = {
+    const msg: ChatMessage = {
       id: newId(),
-      proyectoId: meta.proyectoId,
-      autorTipo: meta.role,
-      autorNombre: meta.role === "cliente" ? "Cliente" : meta.nombre,
-      texto,
-      creadoEn: new Date().toISOString(),
+      authorType: meta.role,
+      authorName: meta.role === "cliente" ? "Cliente" : meta.name,
+      text,
+      createdAt: new Date().toISOString(),
     };
 
     // Persist to D1.
     const db = dbFromEnv(this.env);
     await db.insert(mensajesChat).values({
       id: msg.id,
-      proyectoId: msg.proyectoId,
-      autorTipo: msg.autorTipo,
-      autorId: meta.autorId,
-      autorNombre: msg.autorNombre,
-      texto: msg.texto,
+      proyectoId: meta.projectId,
+      autorTipo: msg.authorType,
+      autorId: meta.authorId,
+      autorNombre: msg.authorName,
+      texto: msg.text,
       // Client messages start unread (for the partner inbox); partner messages
       // are considered read.
       leido: meta.role === "socio",
-      creadoEn: msg.creadoEn,
+      creadoEn: msg.createdAt,
     });
 
     // Broadcast to every live socket in this room.
@@ -99,13 +90,13 @@ export class ChatRoom extends DurableObject<CloudflareEnv> {
       const proj = await db
         .select({ nombre: proyectos.nombre })
         .from(proyectos)
-        .where(eq(proyectos.id, meta.proyectoId))
+        .where(eq(proyectos.id, meta.projectId))
         .get();
       this.ctx.waitUntil(
         notifyPartners(
           {
             title: `Nuevo mensaje del cliente`,
-            body: `${proj?.nombre ?? "Proyecto"}: ${texto.slice(0, 200)}`,
+            body: `${proj?.nombre ?? "Proyecto"}: ${text.slice(0, 200)}`,
           },
           this.env,
         ),
@@ -121,7 +112,7 @@ export class ChatRoom extends DurableObject<CloudflareEnv> {
     }
   }
 
-  private broadcast(msg: WireMessage): void {
+  private broadcast(msg: ChatMessage): void {
     const payload = JSON.stringify({ type: "message", ...msg });
     for (const ws of this.ctx.getWebSockets()) {
       try {

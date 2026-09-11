@@ -11,6 +11,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { proyectos } from "./src/db/schema";
 import { SESSION_COOKIE, verifySession } from "./src/lib/session";
+import type { ChatAuthorType } from "./src/entities/chat/model/types";
 
 export { ChatRoom } from "./src/durable-objects/chat-room";
 
@@ -35,7 +36,7 @@ async function handleChatUpgrade(
   const projectParam = url.searchParams.get("project");
 
   let projectId: string;
-  let role: "cliente" | "socio";
+  let role: ChatAuthorType;
   let authorName = "Cliente";
   let authorId = "";
 

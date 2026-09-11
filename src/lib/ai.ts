@@ -5,15 +5,15 @@
 // `llama-3.1-8b-instruct` plano NO está disponible; usamos 3.3 70B fp8-fast.
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-export interface IssueSugerido {
-  titulo: string;
-  cuerpo: string;
+export interface SuggestedIssue {
+  title: string;
+  body: string;
 }
 
 interface IdeaInput {
-  titulo: string;
-  descripcion?: string | null;
-  comentarios: { autor: string; texto: string }[];
+  title: string;
+  description?: string | null;
+  comments: { author: string; text: string }[];
 }
 
 const SYSTEM = `Eres un asistente técnico de SacorTech. Recibes una idea de proyecto
@@ -27,7 +27,7 @@ issues de GitHub deben quedar en inglés), aunque la idea y los comentarios de
 entrada estén en español.`;
 
 // Extrae el primer array JSON del texto del modelo (tolera ruido alrededor).
-function parseIssues(text: string): IssueSugerido[] {
+function parseIssues(text: string): SuggestedIssue[] {
   const start = text.indexOf("[");
   const end = text.lastIndexOf("]");
   if (start === -1 || end === -1 || end <= start) return [];
@@ -37,28 +37,28 @@ function parseIssues(text: string): IssueSugerido[] {
     return arr
       .filter((x) => x && typeof x.titulo === "string")
       .map((x) => ({
-        titulo: String(x.titulo).slice(0, 200).trim(),
-        cuerpo: typeof x.cuerpo === "string" ? x.cuerpo.trim() : "",
+        title: String(x.titulo).slice(0, 200).trim(),
+        body: typeof x.cuerpo === "string" ? x.cuerpo.trim() : "",
       }))
-      .filter((x) => x.titulo.length > 0);
+      .filter((x) => x.title.length > 0);
   } catch {
     return [];
   }
 }
 
-export async function desglosarIdea(
+export async function suggestIssuesForIdea(
   env: CloudflareEnv,
   idea: IdeaInput,
-): Promise<IssueSugerido[]> {
-  const comentarios =
-    idea.comentarios.length > 0
-      ? idea.comentarios.map((c) => `- ${c.autor}: ${c.texto}`).join("\n")
+): Promise<SuggestedIssue[]> {
+  const comments =
+    idea.comments.length > 0
+      ? idea.comments.map((c) => `- ${c.author}: ${c.text}`).join("\n")
       : "(sin comentarios)";
 
-  const userMsg = `IDEA: ${idea.titulo}
-DESCRIPCIÓN: ${idea.descripcion || "(sin descripción)"}
+  const userMsg = `IDEA: ${idea.title}
+DESCRIPCIÓN: ${idea.description || "(sin descripción)"}
 COMENTARIOS DE LOS SOCIOS:
-${comentarios}`;
+${comments}`;
 
   const out = (await env.AI.run(MODEL, {
     messages: [

@@ -2,17 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { eventosProgreso, githubCuentas, proyectos } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
 import { newId } from "@/lib/ids";
 import { createRepo, createWebhook, getRepo, getUserToken } from "@/lib/github-oauth";
-import { refrescarProgreso } from "./proyectos";
+import { getProjectDetail, refreshProjectProgress } from "@/server/services/project.service";
+import { getDb } from "@/db";
+import { insertProgressEvent, updateProjectGithubLink, updateProjectRepo } from "@/server/models/project.model";
 
 // slug para nombre de repo: minúsculas, alfanumérico + guiones.
-function slugRepo(nombre: string): string {
-  const s = nombre
+function slugRepo(name: string): string {
+  const s = name
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -20,13 +19,6 @@ function slugRepo(nombre: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 90);
   return s || `proyecto-${Date.now()}`;
-}
-
-export async function desconectarGithub() {
-  const session = await requireSession();
-  const db = getDb();
-  await db.delete(githubCuentas).where(eq(githubCuentas.usuarioId, session.uid));
-  revalidatePath("/admin/perfil");
 }
 
 // Acepta "owner/repo", una URL completa de GitHub, o con ".git", y normaliza a
@@ -42,8 +34,8 @@ function normalizeRepo(input: string): string | null {
 
 // Vincula un repo YA existente (de la cuenta del creador) a la idea, usando su
 // user token OAuth. No requiere Installation ID de GitHub App.
-export async function vincularRepoExistente(
-  proyectoId: string,
+export async function linkExistingRepoAction(
+  projectId: string,
   repoInput: string,
 ): Promise<{ ok: boolean; error?: string; repo?: string; url?: string }> {
   await requireSession();
@@ -54,16 +46,12 @@ export async function vincularRepoExistente(
   if (!repo)
     return { ok: false, error: "Formato inválido. Usa owner/repo o la URL." };
 
-  const proj = await db
-    .select()
-    .from(proyectos)
-    .where(eq(proyectos.id, proyectoId))
-    .get();
-  if (!proj) return { ok: false, error: "Proyecto no encontrado" };
-  if (!proj.creadoPor)
+  const project = await getProjectDetail(projectId);
+  if (!project) return { ok: false, error: "Proyecto no encontrado" };
+  if (!project.createdBy)
     return { ok: false, error: "La idea no tiene creador asignado" };
 
-  const token = await getUserToken(env, proj.creadoPor);
+  const token = await getUserToken(env, project.createdBy);
   if (!token)
     return {
       ok: false,
@@ -74,55 +62,48 @@ export async function vincularRepoExistente(
   try {
     info = await getRepo(token, repo);
   } catch (e) {
-    console.error("[vincularRepoExistente]", e);
+    console.error("[linkExistingRepoAction]", e);
     return {
       ok: false,
       error: "No se pudo acceder al repo (¿existe y el creador tiene acceso?)",
     };
   }
 
-  await db
-    .update(proyectos)
-    .set({
-      repoGithub: info.full_name,
-      installationId: null,
-      milestoneId: null,
-      milestoneTitulo: null,
-    })
-    .where(eq(proyectos.id, proyectoId));
-
-  await db.insert(eventosProgreso).values({
-    id: newId(),
-    proyectoId,
-    tipo: "repo",
-    descripcion: `Repositorio vinculado: ${info.full_name}.`,
+  await updateProjectGithubLink(db, projectId, {
+    repoGithub: info.full_name,
+    installationId: null,
+    milestoneId: null,
+    milestoneTitle: null,
   });
 
-  await refrescarProgreso(proyectoId);
-  revalidatePath(`/admin/proyectos/${proyectoId}`);
+  await insertProgressEvent(db, {
+    id: newId(),
+    projectId,
+    type: "repo",
+    description: `Repositorio vinculado: ${info.full_name}.`,
+  });
+
+  await refreshProjectProgress(projectId);
+  revalidatePath(`/admin/proyectos/${projectId}`);
   revalidatePath("/admin/kanban");
   return { ok: true, repo: info.full_name, url: info.html_url };
 }
 
 // Crea el repo en la cuenta del socio que CREÓ la idea. Devuelve resultado.
-export async function crearRepoParaIdea(
-  proyectoId: string,
+export async function createRepoForIdeaAction(
+  projectId: string,
 ): Promise<{ ok: boolean; error?: string; repo?: string; url?: string }> {
   await requireSession();
   const { env } = getCloudflareContext();
   const db = getDb();
 
-  const proj = await db
-    .select()
-    .from(proyectos)
-    .where(eq(proyectos.id, proyectoId))
-    .get();
-  if (!proj) return { ok: false, error: "Proyecto no encontrado" };
-  if (proj.repoGithub) return { ok: false, error: "Ya tiene repositorio" };
-  if (!proj.creadoPor)
+  const project = await getProjectDetail(projectId);
+  if (!project) return { ok: false, error: "Proyecto no encontrado" };
+  if (project.repoGithub) return { ok: false, error: "Ya tiene repositorio" };
+  if (!project.createdBy)
     return { ok: false, error: "La idea no tiene creador asignado" };
 
-  const token = await getUserToken(env, proj.creadoPor);
+  const token = await getUserToken(env, project.createdBy);
   if (!token)
     return {
       ok: false,
@@ -131,15 +112,12 @@ export async function crearRepoParaIdea(
 
   try {
     const repo = await createRepo(token, {
-      name: slugRepo(proj.nombre),
-      description: proj.descripcion ?? `Proyecto SacorTech: ${proj.nombre}`,
+      name: slugRepo(project.name),
+      description: project.description ?? `Proyecto SacorTech: ${project.name}`,
       private: true,
     });
 
-    await db
-      .update(proyectos)
-      .set({ repoGithub: repo.full_name })
-      .where(eq(proyectos.id, proyectoId));
+    await updateProjectRepo(db, projectId, repo.full_name);
 
     // Webhook opcional (necesita host público en APP_URL).
     if (env.APP_URL && env.GITHUB_WEBHOOK_SECRET) {
@@ -149,22 +127,22 @@ export async function crearRepoParaIdea(
           secret: env.GITHUB_WEBHOOK_SECRET,
         });
       } catch (e) {
-        console.error("[crearRepoParaIdea] webhook", e);
+        console.error("[createRepoForIdeaAction] webhook", e);
       }
     }
 
-    await db.insert(eventosProgreso).values({
+    await insertProgressEvent(db, {
       id: newId(),
-      proyectoId,
-      tipo: "repo",
-      descripcion: `Repositorio creado: ${repo.full_name}.`,
+      projectId,
+      type: "repo",
+      description: `Repositorio creado: ${repo.full_name}.`,
     });
 
-    revalidatePath(`/admin/proyectos/${proyectoId}`);
+    revalidatePath(`/admin/proyectos/${projectId}`);
     revalidatePath("/admin/kanban");
     return { ok: true, repo: repo.full_name, url: repo.html_url };
   } catch (e) {
-    console.error("[crearRepoParaIdea]", e);
+    console.error("[createRepoForIdeaAction]", e);
     return { ok: false, error: "Fallo al crear el repo en GitHub" };
   }
 }

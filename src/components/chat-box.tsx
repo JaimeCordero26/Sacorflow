@@ -1,24 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatHora } from "@/lib/format";
-import { useChat, type ChatMessage } from "./use-chat";
+import { formatTime } from "@/shared/lib/date";
+import { useChat } from "./use-chat";
+import type { ChatAuthorType, ChatMessage } from "@/entities/chat/model/types";
 
 // Reusable chat UI. `mine` decides which side a message renders on.
 export function ChatBox({
   query,
-  historial,
+  history,
   mine,
   title,
   className,
 }: {
   query: string;
-  historial: ChatMessage[];
-  mine: "cliente" | "socio";
+  history: ChatMessage[];
+  mine: ChatAuthorType;
   title?: string;
   className?: string;
 }) {
-  const { messages, state, send } = useChat(query, historial);
+  const { messages, state, send } = useChat(query, history);
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +59,7 @@ export function ChatBox({
           </p>
         )}
         {messages.map((m) => {
-          const isMine = m.autorTipo === mine;
+          const isMine = m.authorType === mine;
           return (
             <div
               key={m.id}
@@ -73,16 +74,16 @@ export function ChatBox({
               >
                 {!isMine && (
                   <div className="mb-0.5 text-xs font-semibold text-brand-300">
-                    {m.autorNombre}
+                    {m.authorName}
                   </div>
                 )}
-                <p className="whitespace-pre-wrap break-words">{m.texto}</p>
+                <p className="whitespace-pre-wrap break-words">{m.text}</p>
                 <time
                   className={`mt-1 block text-[10px] ${
                     isMine ? "text-ink-900/70" : "text-slate-500"
                   }`}
                 >
-                  {formatHora(m.creadoEn)}
+                  {formatTime(m.createdAt)}
                 </time>
               </div>
             </div>

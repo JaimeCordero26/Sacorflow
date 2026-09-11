@@ -1,75 +1,84 @@
 import { notFound } from "next/navigation";
-import { getProyectoDetalle, marcarMensajesClienteLeidos } from "@/db/queries/proyectos";
-import { StageEditor } from "./stage-editor";
-import { EtapasManager } from "./etapas-manager";
-import { ActiveToggle } from "./active-toggle";
-import { PublicLink } from "./public-link";
-import { GithubPanel } from "./github-panel";
-import { PropuestasPanel } from "./propuestas-panel";
-import { ClientLinker } from "./client-linker";
+import { getClientsPageData } from "@/server/services/client.service";
+import { listClientsLinkedToProject } from "@/server/models/client.model";
+import { getDb } from "@/db";
+import {
+  getProjectChatHistory,
+  getProjectDetail,
+  getProjectEvents,
+  markClientMessagesAsRead,
+} from "@/server/services/project.service";
+import { getStages } from "@/server/services/stage.service";
+import { getProposedIssues } from "@/server/services/proposed-issue.service";
+import { getSprintBoardData } from "@/server/services/sprint.service";
+import { StageEditor } from "@/features/edit-project-stage/ui/StageEditor";
+import { StagesManager } from "@/features/manage-stages/ui/StagesManager";
+import { ActiveToggle } from "@/features/toggle-project-active/ui/ActiveToggle";
+import { PublicLinkPanel } from "@/features/share-project-link/ui/PublicLinkPanel";
+import { GithubPanel } from "@/features/manage-project-github-link/ui/GithubPanel";
+import { ProposedIssuesPanel } from "@/features/manage-proposed-issues/ui/ProposedIssuesPanel";
+import { ClientLinker } from "@/features/link-client-to-project/ui/ClientLinker";
 import { AdminChat } from "./admin-chat";
-import { SprintBoard } from "./sprint-board/sprint-board";
-import { toSprintInfo, toTareaCard } from "./sprint-board/types";
+import { SprintBoard } from "@/widgets/sprint-board/ui/SprintBoard";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProyectoDetalle({
+export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
 
-  const detalle = await getProyectoDetalle(id);
-  if (!detalle) notFound();
-  const {
-    proyecto: proj,
-    etapas: listaEtapas,
-    eventos,
-    mensajes,
-    todosClientes,
-    clientesVinculados,
-    propuestas,
-    creadorGithubLogin,
-    sprints: listaSprints,
-    tareas: listaTareas,
-  } = detalle;
+  const project = await getProjectDetail(id);
+  if (!project) notFound();
+
+  const [stages, events, allClients, linkedClients, proposals, sprintBoardData, messages] =
+    await Promise.all([
+      getStages(),
+      getProjectEvents(id),
+      getClientsPageData(),
+      listClientsLinkedToProject(getDb(), id),
+      getProposedIssues(id),
+      getSprintBoardData(id),
+      getProjectChatHistory(id),
+    ]);
 
   // Side-effect explícito, separado del fetch de arriba: marca como leídos
   // los mensajes que el cliente mandó (para el inbox de socios en /admin).
-  await marcarMensajesClienteLeidos(id);
+  await markClientMessagesAsRead(id);
 
-  const stageNames = listaEtapas.map((e) => e.nombre);
+  const stageNames = stages.map((s) => s.name);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-white">{proj.nombre}</h1>
-          {proj.descripcion && (
+          <h1 className="text-2xl font-black text-white">{project.name}</h1>
+          {project.description && (
             <p className="mt-1 max-w-2xl text-sm text-slate-400">
-              {proj.descripcion}
+              {project.description}
             </p>
           )}
-          {proj.repoGithub && (
+          {project.repoGithub && (
             <a
-              href={`https://github.com/${proj.repoGithub}`}
+              href={`https://github.com/${project.repoGithub}`}
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-brand-400 hover:underline"
             >
-              {proj.repoGithub} ↗
+              {project.repoGithub} ↗
             </a>
           )}
         </div>
-        <ActiveToggle proyectoId={proj.id} activo={proj.activo} />
+        <ActiveToggle projectId={project.id} active={project.active} />
       </div>
 
       <SprintBoard
-        proyectoId={proj.id}
-        tieneRepo={!!proj.repoGithub}
-        sprints={listaSprints.map(toSprintInfo)}
-        tareas={listaTareas.map(toTareaCard)}
+        proyectoId={project.id}
+        tieneRepo={!!project.repoGithub}
+        sprints={sprintBoardData.sprints}
+        tareas={sprintBoardData.tasks}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -79,55 +88,46 @@ export default async function ProyectoDetalle({
             <div className="mt-3">
               <div className="mb-1 flex items-center justify-between text-sm">
                 <span className="text-slate-400">Avance</span>
-                <span className="font-bold text-white">{proj.progresoPct}%</span>
+                <span className="font-bold text-white">{project.progressPct}%</span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-white/5">
                 <div
                   className="h-full rounded-full bg-brand-gradient-2 transition-all"
-                  style={{ width: `${proj.progresoPct}%` }}
+                  style={{ width: `${project.progressPct}%` }}
                 />
               </div>
             </div>
             <div className="mt-4">
               <StageEditor
-                proyectoId={proj.id}
-                etapaActual={proj.etapaActual}
-                etapas={stageNames}
+                projectId={project.id}
+                currentStage={project.stage}
+                stages={stageNames}
               />
-              <EtapasManager
-                etapas={listaEtapas.map((e) => ({ id: e.id, nombre: e.nombre }))}
-              />
+              <StagesManager stages={stages} />
             </div>
           </section>
 
           <GithubPanel
-            proyectoId={proj.id}
-            repoGithub={proj.repoGithub}
-            installationId={proj.installationId}
-            milestoneId={proj.milestoneId}
-            milestoneTitulo={proj.milestoneTitulo}
-            creadorLogin={creadorGithubLogin}
+            projectId={project.id}
+            repoGithub={project.repoGithub}
+            installationId={project.installationId}
+            milestoneId={project.milestoneId}
+            milestoneTitle={project.milestoneTitle}
+            creatorLogin={project.creatorGithubLogin}
           />
 
-          <PropuestasPanel
-            proyectoId={proj.id}
-            tieneRepo={!!proj.repoGithub}
-            propuestas={propuestas.map((p) => ({
-              id: p.id,
-              titulo: p.titulo,
-              cuerpo: p.cuerpo,
-              estado: p.estado as "propuesto" | "aceptado" | "descartado",
-              githubIssueNumber: p.githubIssueNumber,
-              githubIssueUrl: p.githubIssueUrl,
-            }))}
+          <ProposedIssuesPanel
+            projectId={project.id}
+            hasRepo={!!project.repoGithub}
+            proposals={proposals}
           />
 
-          <PublicLink token={proj.tokenPublico} activo={proj.activo} />
+          <PublicLinkPanel token={project.publicToken} active={project.active} />
 
           <ClientLinker
-            proyectoId={proj.id}
-            todos={todosClientes.map((c) => ({ id: c.id, nombre: c.nombre }))}
-            vinculados={clientesVinculados}
+            projectId={project.id}
+            allClients={allClients.map((c) => ({ id: c.id, name: c.name }))}
+            linkedClients={linkedClients}
           />
 
           <section className="card p-5">
@@ -135,16 +135,16 @@ export default async function ProyectoDetalle({
               Historial de eventos
             </h2>
             <ol className="mt-3 space-y-3">
-              {eventos.length === 0 && (
+              {events.length === 0 && (
                 <li className="text-sm text-slate-500">Sin eventos todavía.</li>
               )}
-              {eventos.map((ev) => (
+              {events.map((ev) => (
                 <li key={ev.id} className="flex gap-3">
                   <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
                   <div>
-                    <p className="text-sm text-slate-200">{ev.descripcion}</p>
+                    <p className="text-sm text-slate-200">{ev.description}</p>
                     <time className="text-xs text-slate-600">
-                      {new Date(ev.creadoEn).toLocaleString("es-MX")}
+                      {new Date(ev.createdAt).toLocaleString("es-MX")}
                     </time>
                   </div>
                 </li>
@@ -154,16 +154,7 @@ export default async function ProyectoDetalle({
         </div>
 
         <div className="lg:col-span-1">
-          <AdminChat
-            proyectoId={proj.id}
-            historial={mensajes.map((m) => ({
-              id: m.id,
-              autorTipo: m.autorTipo as "cliente" | "socio",
-              autorNombre: m.autorNombre,
-              texto: m.texto,
-              creadoEn: m.creadoEn,
-            }))}
-          />
+          <AdminChat proyectoId={project.id} history={messages} />
         </div>
       </div>
     </div>
