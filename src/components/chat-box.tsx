@@ -22,14 +22,31 @@ export function ChatBox({
   const { messages, state, send } = useChat(query, history);
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the textarea to fit its content (capped by max-h, then scrolls).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function submit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (send(text)) setText("");
+  }
+
+  // Enter sends; Shift+Enter inserts a new line.
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      if (state === "open") submit();
+    }
   }
 
   return (
@@ -92,12 +109,18 @@ export function ChatBox({
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={submit} className="flex gap-2 border-t border-white/10 p-3">
-        <input
+      <form
+        onSubmit={submit}
+        className="flex items-end gap-2 border-t border-white/10 p-3"
+      >
+        <textarea
+          ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onKeyDown={onKeyDown}
+          rows={1}
           placeholder="Escribe un mensaje…"
-          className="input flex-1"
+          className="input max-h-40 flex-1 resize-none overflow-y-auto"
         />
         <button
           type="submit"
